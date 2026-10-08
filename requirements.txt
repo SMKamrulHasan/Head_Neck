@@ -1,0 +1,54 @@
+Executive Summary
+The meeting focused on defining the business problem, stakeholders, data sources, approach, and next steps for a Head & Neck  project. The primary goal is to develop a method to distinguish Head & Neck versus Lung indications for Rybrevant sales when both indications share the same NDC/SKU, making differentiation impossible from sales data alone. The team agreed to begin with a proof of concept, focusing on data acquisition and experimentation before considering production deployment.
+Business Problem
+When Benjamin Schriver's team receives Rybrevant sales data (DDD/IntegraChain), they can see that a sale occurred, but they cannot determine whether that sale was for a Head & Neck patient or a Lung cancer patient, because both indications use the same SKU and NDC.
+
+What they know	What they don't know
+Account A ordered 100 units of Rybrevant	How much was used for Head & Neck?
+Account B ordered 50 units of Rybrevant	How much was used for Lung?
+
+The sales data only says:
+Rybrevant sale occurred
+
+
+It does not say:
+Rybrevant sale occurred
+→ Head & Neck
+or
+→ Lung
+
+
+Why Does the Business Care?
+According to Benjamin Schriver, the SIA team needs this information for:
+	• Financial forecasting
+	• Market share reporting
+	• Commercial planning
+	• Resource deployment
+	• Business performance tracking
+	Without indication attribution, they cannot accurately answer questions such as:
+		○ How much Head & Neck revenue are we generating?
+		○ How much Lung revenue are we generating?
+		○ Are Head & Neck sales increasing after launch?
+		○ Are forecasts accurate by indication?
+
+
+
+Data Sources Discussed
+1. Sales Data (DDD / IntegraChain)
+	• Daily sales feeds
+	• Available at account (L1) level
+	• Contains product sales information but no diagnosis labels
+	• Primary dataset that requires classification 
+2. Claims Data
+	• Contains diagnosis information
+	• Available at physician (L0/HCP) level
+	• Can provide indication labels such as Head & Neck or Lung
+	• Has latency and incomplete capture limitations 
+3. OPAL Affiliation Data
+	• Maps HCPs to accounts
+	• Enables linking claims data with sales data
+	• Acts as the bridge between labeled claims activity and sales orders 
+4. Lab Data
+	• Available primarily for lung patients
+Could provide strong negative examples and additional signal for model development
+
