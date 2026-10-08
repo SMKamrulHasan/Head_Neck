@@ -1,3 +1,82 @@
+Suggested agenda (60 min)
+Recap of the problem and the proposed approach, using the notebook’s flow diagram (5 min)
+Business requirements, with stakeholders (15 min)
+Data availability and access, with the data team (25 min)
+Validation and success criteria (10 min)
+Owners and next steps (5 min)
+A. For stakeholders (Benjamin Schriver’s SIA team)
+
+Scope and outputs
+
+What level of detail do you need? National only, region/territory, or individual accounts? This decides whether the shrinkage approach is good enough or whether we need a full ML model.
+How often, and how quickly? Monthly or quarterly? How soon after a month closes? Claims latency (2–3 months) may make “last month” impossible. Agree on this early.
+What does the output feed into? A forecast model, market share reports, IC/territory planning, or a dashboard? Anything that drives field incentives needs much higher accuracy at the account level.
+Do you need units, dollars, or both? Gross or net?
+Will you accept a range (e.g., “H&N is 6–9% of sales”) with a confidence flag, or do you need one number?
+
+Product and launch facts
+6. When did (or will) H&N launch? We need pre-launch months as an “it should be ≈0%” check.
+7. Is the H&N dose, schedule or formulation (IV vs SC) different from lung? Does SC have its own NDC? If it does, part of the problem goes away. If dosing differs, order patterns become a strong signal.
+8. Are there known H&N-only or lung-only accounts? Could the field team confirm a sample? This is the best ground truth for validation.
+9. Is there a current estimate or forecast of the H&N share (from market research, the forecast team or an advisory board)? This is our starting assumption and a sanity check.
+10. Are there off-label use or clinical-trial sites we should know about?
+
+Success and governance
+11. What does “good enough” look like for the proof of concept? For example, the national total within ±X% of projected claims, or ranking accounts correctly.
+12. Who signs off, and is there a deadline (a forecast cycle or quarterly business review)?
+13. Are there compliance or privacy limits on using patient-level claims and lab data, and on joining them to account sales?
+
+B. For the data team
+
+Sales (DDD / IntegraChain)
+14. What is the lowest level of detail: account, ship-to or DEA? How far back does it go? Which fields: units, dollars, channel, 340B flag?
+15. Is the account ID the same one used in OPAL? If not, what crosswalk exists? This is the most likely point of failure.
+16. Are there returns or restatements, and do specialty pharmacy or distributor shipments show up as separate accounts?
+
+Claims
+17. Which vendor, and does it include medical claims? Rybrevant is an infusion billed through the clinic (J9061), so pharmacy-only claims will miss most of it.
+18. Do we get all diagnosis codes on each claim (not just the first)? Is there a patient ID that stays the same over time?
+19. What share of claims are captured overall, and how does that vary by payer (Medicare, commercial, Medicaid)? Has this been measured for oncology infusions?
+20. How late does data arrive, and how often do past months get updated?
+21. Does each claim include both the NPI of the HCP who gave the treatment and the facility, or only the billing provider?
+
+OPAL affiliations
+22. Does OPAL include an affiliation weight or type (primary or secondary)? If not, how are HCPs who work at several accounts handled today?
+23. Is it versioned by date? HCPs move between accounts, and we need the affiliation as it was at the time of each claim.
+24. What share of Rybrevant-prescribing NPIs map to at least one sales account?
+
+Lab data
+25. Which vendor, which tests (EGFR, MET, exon20), and at what level: patient, NPI or ordering facility?
+26. Can lab patients be linked to claims patients (by tokenization), or only by NPI?
+
+Data we should also get
+27. Patient support, hub or specialty pharmacy data that includes diagnosis. Do we have it, and can we use it? This could be the best ground truth available.
+28. Lazcluze (lazertinib) sales at the account level. It’s a strong lung signal.
+29. HCP master data (specialty) and the account master (parent IDN, account type, 340B).
+
+Logistics
+30. Where will we work (Snowflake, Databricks, etc.), and how long does it take to get access?
+31. Who can we contact for each source when questions come up?
+32. Can we get a sample extract within 1–2 weeks to run the linkage audit?
+
+Decisions to leave the meeting with
+ Required level of detail, refresh frequency and tolerance for ranges
+ H&N launch date, and whether the NDCs or formulations differ
+ Confirmed access to claims (medical), OPAL, sales and labs, with an owner and date for each
+ Whether patient support or hub data is in scope
+ Success criteria for the proof of concept, and the sign-off owner
+ A list of validation accounts from the field team (who and when)
+
+Tip: use the toy notebook during the meeting. Showing Step 3 (OPAL linkage) and Step 4 (capture rate) makes questions 15, 19, 22 and 24 concrete for the data team.
+
+If you want to send this to attendees beforehand, I can turn it into a one-page agenda doc.
+
+
+
+
+
+
+
 Executive Summary
 The meeting focused on defining the business problem, stakeholders, data sources, approach, and next steps for a Head & Neck  project. The primary goal is to develop a method to distinguish Head & Neck versus Lung indications for Rybrevant sales when both indications share the same NDC/SKU, making differentiation impossible from sales data alone. The team agreed to begin with a proof of concept, focusing on data acquisition and experimentation before considering production deployment.
 Business Problem
