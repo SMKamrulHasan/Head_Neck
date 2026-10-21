@@ -1,0 +1,111 @@
+Table Name,ODP Link,Description,Sample Queries,Notes
+DDD Sales( L1 Level),https://odp.jnj.com/data-table-details/264672,Unaligned non retail sales for DDDMD source at L1 Level,"SELECT DISTINCT
+    A.*,
+    B.prod_nm
+FROM (
+    SELECT *
+    FROM cdp.fct_nonret_sls_trans_wkly
+) AS A
+LEFT JOIN cdp.dmn_prod AS B
+    ON A.prod_sid = B.prod_sid
+   AND A.prod_lst_id = B.prod_lst_id
+WHERE A.caln_dt >= '2026-08-01'
+  AND (
+      UPPER(B.prod_nm) LIKE '%RYBREVANT%'
+      OR UPPER(B.prod_nm) LIKE '%LAZCLUZE%'
+  );","Business Rules:
+• Use weekly non-retail sales transactions from cdp.fct_nonret_sls_trans_wkly.
+• Join to cdp.dmn_prod using both prod_sid and prod_lst_id.
+• Retain products whose names contain RYBREVANT or LAZCLUZE (case-insensitive).
+"
+Xponent Sales( HCP/L0 Level),https://odp.jnj.com/data-table-details/264760,Unaligned retail sales for Xponent at L0(HCP Level),"select A.jnj_id, B.prod_nm, caln_dt ,sum(tot_rx_equiv_uns) as equ_trx 
+from (select *, extract(month from caln_dt) as month,extract(quarter from caln_dt) as quarter, extract(year from caln_dt) as year
+from cdp.fct_ret_sls_trans_wkly
+where thrc_class_cd like '%PRC%' and caln_dt >= '2026-01-01'
+     ) as A 
+left join(select prod_sid, prod_lst_id, prod_nm from cdp.dmn_prod) as B
+on A.prod_sid = B.prod_sid and A.prod_lst_id = B.prod_lst_id
+
+group by 1,2,3
+having B.prod_nm in ('RYBREVANT', 'LAZCLUZE','RYBREVANT FASPRO')","Business Rules:
+• Use weekly retail sales transactions from cdp.fct_ret_sls_trans_wkly
+• Restrict therapeutic class codes to values containing PRC.
+• Join product details using both prod_sid and prod_lst_id.
+• Include only exact product names: RYBREVANT, LAZCLUZE, and RYBREVANT FASPRO."
+OPAL Affliation,https://odp.jnj.com/data-table-details/262924,"Captures complete 6-level provider hierarchy in pivoted down format(from-to relationship). The 6 levels of provider hierarchy are IDN or Corporate Owner, Owner Subsidiary, Hospital, Site of Care, Outlet, Physician.","SELECT *
+FROM cdp.d_provider_hierarchy_pd
+where UPPER(rel_type) LIKE '%ONC%'
+LIMIT 100;","Business Rules:
+• Use provider hierarchy relationships from cdp.d_provider_hierarchy_pd.
+• Include relationship types containing ONC, case-insensitive.
+"
+Master Target List RYB Lung,https://odp.jnj.com/data-table-details/263878,"Table contains Master Target List from various brands. The subset of Master Target lists are used for Email Rental, Base Media Target List, JET Target List, NPI Match with 3rd party suppliers and Veeva.","select * from mdp.vw_master_targetlist
+where brand LIKE '%RYBREVANT%'","Business Rules:
+• Use mdp.vw_master_targetlist
+• Include records where the brand contains RYBREVANT.
+• The brand match is pattern-based rather than an exact equality check."
+Rx claims- cdp.fct_link_int_lung_phrmcy_evnts ,https://odp.jnj.com/data-table-details/265683,"A comprehensive dataset or variable that captures and analyzes pharmacy-related events specifically centered around lung health, providing insights into overall impact of pharmaceutical interventions on respiratory conditions. This information is crucial for understanding trends in lung health management, evaluating the effectiveness of treatments, and informing future healthcare strategies aimed at improving outcomes for patients .","SELECT *
+FROM cdp.fct_link_int_lung_phrmcy_evnts
+WHERE ndc IN (
+    '57894050101',
+    '57894008060',
+    '57894024030',
+    '57894050100'
+)
+AND (UPPER(claim_type) = 'PAID')
+AND (UPPER(claim_status) = 'S')","Business Rules:
+• Use pharmacy events from cdp.fct_link_int_lung_phrmcy_evnts.
+• Include only NDCs 57894050101, 57894008060, 57894024030, and 57894050100.
+• Require claim_type = PAID and claim_status = S, case-insensitive.
+
+NDC Reference:
+57894008060  LAZCLUZE
+57894008090  LAZCLUZE
+57894024030  LAZCLUZE
+57894024099  LAZCLUZE
+57894050100  RYBREVANT
+57894050101  RYBREVANT
+57894051001  RYBREVANT FASPRO
+57894051401  RYBREVANT FASPRO
+57894051501  RYBREVANT FASPRO
+57894052201  RYBREVANT FASPRO"
+"Regimen, Line of therapy information- cdp.dmn_link_int_lung_rgmn",https://odp.jnj.com/data-table-details/265815,Unprojected Regimens Table,,
+NDC to Brand Name Mapping-cdp.dmn_link_int_lung_drug,https://odp.jnj.com/data-table-details/266193,Reference table of NDC codes used to identiy lung cancer treatment market basket.,,
+Call Activity,https://odp.jnj.com/data-table-details/264404,View with Call Activity Information,"select  
+    position_name,
+    product_name,
+    messages,
+    count(distinct call_id) as calls
+from cdp.vw_ce_call_activity_dly as A
+where call_date >= '2026-03-15' and call_date<='2026-05-15'
+  and upper(status) = 'SUBMITTED' 
+  and (
+        upper(position_name) like '%250-OL%' 
+      )
+group by 1,2,3","Business Rules:
+• Use daily call activity from cdp.vw_ce_call_activity_dly.
+• Include only records with status SUBMITTED.
+• Restrict position names to values containing 250-OL or 250-PS.
+• Count distinct call IDs by position name, product name, and message.
+
+Additional Description:
+250-OL is the OS selling division for Lung. 250-PS is the OCE selling division; when analyzing OCE activity, filter product_name for RYB or LAZ because the team also calls on Inlexzo. This additional guidance is not implemented in the sample query."
+dmn_cust,https://odp.jnj.com/data-table-details/265190,It Contains information regarding the customers,"Select * from
+cdp.dmn_cust
+where
+end_dt = '2099-12-31T00:00:00.000Z'
+and
+cust_stat_nm = 'Active'","Main Use Case: NPI to JNJ ID Mapping, Customer Details. If 1 to many mapping exist keep the jnj_id with latest efftv_dt"
+cdp.fct_ontada_lung_hcp_trigger_data- Mckesson GPO Data,https://odp.jnj.com/data-table-details/265841,metastatic non-small cell lung trigger data,"select * from cdp.fct_ontada_lung_hcp_trigger_data
+where ( UPPER(alert_name) LIKE '%RYB%' OR UPPER(alert_name) LIKE '%LAZ%')
+",metastatic non-small cell lung trigger data
+FinThrive ChargeMaster,Shared on Email via Ryan larsen,,,
+MX Claims- cdp.fct_link_int_lung_mdcl_evnts,https://odp.jnj.com/data-table-details/266169,"A comprehensive dataset or variable that captures and analyzes medical-related events specifically centered around lung health , aimed at tracking and analyzing various healthcare interventions, treatments, and outcomes for patients. This dataset enabling a comprehensive understanding of how medical interventions influence lung health. The insights derived from this data are essential to enhance patient outcomes .","SELECT *
+FROM cdp.fct_link_int_lung_mdcl_evnts
+WHERE ndc IN (
+    '57894050101',
+    '57894008060',
+    '57894024030',
+    '57894050100'
+)
+and service_date >= '2025-01-01';",
