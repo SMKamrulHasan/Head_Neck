@@ -57,31 +57,36 @@ If we group medical claim lines by patient (dv1+dv2) + service_date + NDC, we ge
 84 groups = 2 lines
 1 group = 3 lines
 
-No group mixes PROFESSIONAL and INSTITUTIONAL lines. The extra lines come from the same billing source, and their modifiers differ:
+No group mixes PROFESSIONAL and INSTITUTIONAL lines. The extra lines come from the same billing source, and their modifiers differ. Two examples:
 
-Example 1 – waste line (JW)
+Example 1 – waste line (JW), Rybrevant Faspro
 
-patient	service_date	NDC	data_source	modifiers	quantity
-0/Qp5ClX…	2026-08-11	57894052201 (Faspro)	INSTITUTIONAL	|TB|PO|	?
-0/Qp5ClX…	2026-08-11	57894052201 (Faspro)	INSTITUTIONAL	|JW|TB|PO|	?
-				total	704
+patient	service_date	NDC	data_source	modifiers	quantity	unit	procedure	rendering_npi	mx_claim_id
+0/Qp5ClX…	2026-08-11	57894052201	INSTITUTIONAL	|TB|PO|	672	10 MG	J9062	1730660408	I36ppq77dszC00010
+0/Qp5ClX…	2026-08-11	57894052201	INSTITUTIONAL	|JW|TB|PO|	32	10 MG	J9062	1730660408	I36ppq77dszC00009
 
-JW = drug discarded/wasted. So this looks like one administration plus the wasted part of the vial.
 
-Example 2 – repeat line (76)
+Same patient, day, doctor and product. The claim IDs share the same base (I36ppq77dsz…) with different suffixes.
+JW = drug discarded/wasted. This reads as 672 units given + 32 units wasted = 704 units, i.e. one administration.
 
-patient	service_date	NDC	data_source	modifiers	quantity
-05Q7uvRB…	2026-08-17	57894050101 (Rybrevant)	PROFESSIONAL	|JZ|	?
-05Q7uvRB…	2026-08-17	57894050101 (Rybrevant)	PROFESSIONAL	|76|JZ|	?
-				total	875
 
-76 = repeat procedure by the same physician; JZ = no waste. This could be a second administration on the same day, or the same one billed again.
+Example 2 – repeat line (76), Rybrevant IV
+
+patient	service_date	NDC	data_source	modifiers	quantity	unit	procedure	rendering_npi	mx_claim_id
+05Q7uvRB…	2026-08-17	57894050101	PROFESSIONAL	|JZ|	438	2 MG	J9061	1144240334	P06yhcv4eg8C00014
+05Q7uvRB…	2026-08-17	57894050101	PROFESSIONAL	|76|JZ|	437	2 MG	J9061	1144240334	P06yhcv4eg8C00017
+
+
+Same patient, day, doctor and product, and the same claim base (P06yhcv4eg8…).
+76 = repeat procedure by the same physician; JZ = no waste.
+The two lines are almost equal (438 + 437 = 875 units × 2 mg = 1,750 mg). This could be one dose billed on two lines, or two administrations on the same day.
 
 Questions:
 
 Should we count one administration per patient + date + NDC (897), or each line (983)?
-For JW lines: keep the quantity (the account bought and used up that vial, so it matches DDD sales) or exclude it (only drug actually given)?
-For 76 lines: count as a second administration or the same one?
+JW lines: keep the wasted quantity (the account bought that drug, so it matches DDD units) or exclude it (only drug given to the patient)?
+76 lines: same administration, or a second one?
+
 
 
 
