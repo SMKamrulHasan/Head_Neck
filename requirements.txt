@@ -1,13 +1,23 @@
-dup = (mx.groupBy("dv1", "dv2", "service_date", "ndc")
-         .agg(F.count("*").alias("lines"),
-              F.countDistinct("data_source").alias("n_sources"),
-              F.collect_set("data_source").alias("sources"),
-              F.collect_set("modifiers").alias("modifiers"),
-              F.sum("quantity").alias("total_qty")))
-dup.groupBy("lines", "n_sources").count().orderBy("lines", "n_sources").show()      # how common is each case
-dup.filter("n_sources > 1").show(20, False)                                          # professional + facility pairs
-dup.filter("lines > 1 AND n_sources = 1").show(20, False)                            # same source, e.g. JW waste lines
++-----+---------+-----+
+|lines|n_sources|count|
++-----+---------+-----+
+|    1|        1|  812|
+|    2|        1|   84|
+|    3|        1|    1|
++-----+---------+-----+
 
++---+---+------------+---+-----+---------+-------+---------+---------+
+|dv1|dv2|service_date|ndc|lines|n_sources|sources|modifiers|total_qty|
++---+---+------------+---+-----+---------+-------+---------+---------+
++---+---+------------+---+-----+---------+-------+---------+---------+
+
++--------------------------------------------+--------------------------------------------+-------------------+-----------+-----+---------+---------------+---------------------+---------+
+|dv1                                         |dv2                                         |service_date       |ndc        |lines|n_sources|sources        |modifiers            |total_qty|
++--------------------------------------------+--------------------------------------------+-------------------+-----------+-----+---------+---------------+---------------------+---------+
+|+4+RdU3ZMwk2qr1NhzAInKwRk2C4NUZ7yTmd/w9TxS0=|iAv/DL0jZMT9y/55EHB/58Ua4tCCh6gXR6qycomXcCk=|2026-08-04 00:00:00|57894051001|2    |1        |[PROFESSIONAL] |[|JW|]               |320.0    |
+|+4+RdU3ZMwk2qr1NhzAInKwRk2C4NUZ7yTmd/w9TxS0=|iAv/DL0jZMT9y/55EHB/58Ua4tCCh6gXR6qycomXcCk=|2026-08-18 00:00:00|57894051001|2    |1        |[PROFESSIONAL] |[|JW|]               |320.0    |
+|0/Qp5ClXFEQcLLXRGpPbOGnd5hrWW2/za/Eqrs49hWs=|6/xvvQBXLK8JzaCe9pk0OoueJe0nlyDVmtTr4t6GIgI=|2026-08-11 00:00:00|57894052201|2    |1        |[INSTITUTIONAL]|[|TB|PO|, |JW|TB|PO|]|704.0    |
+|05Q7uvRBP/E99YZjEu5amqdme0dAN/ytFwjntSSm8oQ=|7wP7GDsKNnkpnDH2BtoCh1AVPAfAnT40G9NEc3u82dY=|2026-08-17 00:00:00|57894050101|2    |1        |[PROFESSIONAL] |[|JZ|, |76|JZ|]      |875.0    |
 
 
 
