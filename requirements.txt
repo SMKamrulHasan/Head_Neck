@@ -1,50 +1,50 @@
-# ============================================================
-# DIAGNOSTIC EV0-5 (read-only: run after cell 4)
-#   Rows with a blank event name are dropped by Step 0. What are they?
-# ============================================================
-import re
-import pandas as pd
+=== EV0-5: rows with a blank event name ===
+Rows: 10,213 of 31,205 (33%)
+HCPs in these rows: 1,453
+HCPs that appear ONLY in these rows: 180
 
-a = conference.copy()
-a["jnj_id"] = a["jnj_id"].astype(str)
-a["_blank"] = a["event_nm"].fillna("").astype(str).str.strip() == ""
-b = a[a["_blank"]]
+What else is missing in these rows (share null):
+      talk_title: 0% null (named rows: 0%)
+         strt_dt: 100% null (named rows: 0%)
+       event_typ: 100% null (named rows: 11%)
+        postn_nm: 25% null (named rows: 20%)
+    med_event_id: 0% null (named rows: 0%)
 
-print("=== EV0-5: rows with a blank event name ===")
-print(f"Rows: {len(b):,} of {len(a):,} ({len(b) / len(a):.0%})")
-print(f"HCPs in these rows: {b['jnj_id'].nunique():,}")
-only_blank = set(b["jnj_id"]) - set(a.loc[~a["_blank"], "jnj_id"])
-print(f"HCPs that appear ONLY in these rows: {len(only_blank):,}")
+By source:
+source
+Publication    8420
+Medverse       1036
+Focus Area      757
 
-print("\nWhat else is missing in these rows (share null):")
-for c in ["talk_title", "strt_dt", "event_typ", "postn_nm", "med_event_id"]:
-    print(f"  {c:>14}: {b[c].isna().mean():.0%} null (named rows: {a.loc[~a['_blank'], c].isna().mean():.0%})")
+Blank rows whose med_event_id event-part matches a named event: 0
 
-print("\nBy source:")
-print(b["source"].value_counts().to_string())
+Core DAD talks in blank rows: 8 talks / 4 HCPs
+'Hemolysis'-only talks in blank rows: 13 talks / 19 HCPs
 
-# does the first part of med_event_id (the event) match any named event?
-a["_event_part"] = a["med_event_id"].astype(str).str.split("-").str[0]
-named_parts = set(a.loc[~a["_blank"], "_event_part"])
-b_parts = a.loc[a["_blank"], "_event_part"]
-print(f"\nBlank rows whose med_event_id event-part matches a named event: {int(b_parts.isin(named_parts).sum()):,}")
+Core DAD talk titles with no event name:
+- Long-Term Efficacy and Safety Study of Rilzabrutinib, Oral Bruton Tyrosine Kinase Inhibitor, in Patients with Warm Autoi
+- Assessment of Nipocalimab Effects on Fatigue in Warm Autoimmune Hemolytic Anemia: Results from the Double-Blind Phase 2/
+- What you need to know about warm autoimmune hemolytic anemia
+- Pharmacodynamic Effect of Nipocalimab in Warm Autoimmune Hemolytic Anemia (WAIHA) and Correlation with Clinical Improvem
+- Impact of Rilzabrutinib on Biomarkers of Inflammation and Complement Factors in Warm Autoimmune Hemolytic Anemia (WAIHA)
+- Update: Autoimmune Hemolytic Anemia (Warm and Cold)
+- Adaptive Collaboration Between Emergency Department and Neonatal Intensive Care to Provide Massive Transfusion and Mecha
+- Nipocalimab for Warm Autoimmune Hemolytic Anemia: Results from the Phase 2/3 Randomized Double-Blind Energy Study
 
-# disease-area talks among them (these still reach Step 1, which filters on talk_title)
-terms = DAD["term"].dropna().astype(str).str.strip().str.lower().tolist()
-broad = ["hemolysis", "erythrocyte destruction"]
-pat = lambda ts: r"(?<!\w)(?:" + "|".join(re.escape(t) for t in ts) + r")(?!\w)"
-t = b["talk_title"].fillna("").astype(str).str.lower()
-core = t.str.contains(pat([x for x in terms if x not in broad]), regex=True)
-brd = t.str.contains(pat(broad), regex=True) & ~core
-print(f"\nCore DAD talks in blank rows: {b.loc[core, 'med_event_id'].nunique()} talks / {b.loc[core, 'jnj_id'].nunique()} HCPs")
-print(f"'Hemolysis'-only talks in blank rows: {b.loc[brd, 'med_event_id'].nunique()} talks / {b.loc[brd, 'jnj_id'].nunique()} HCPs")
-print("\nCore DAD talk titles with no event name:")
-for x in b.loc[core, "talk_title"].drop_duplicates().head(10):
-    print("-", str(x)[:120])
+Sample blank-event talk titles:
+- CH COVID-19: Poster Review: COVID Vaccine Adverse Events & RMD Flares Secondary includes #0858 & #0896
+- Discussant for the Richard E. Clark Memorial Paper for Cardiopulmonary Failure
+- How I Treat PV Before and After Fibrotic Transformation
+- Whole Blood Transfusion - Updated Indications
+- Integrated Multi-Omic Profiling Identifies Genomic Subtypes Associated with Differential Outcomes after Car-T Therapy in
+- Correlation of Report of Quality of Life and Complementary and Alternative Medicine (CAM) Use among Patients with Immune
+- Lab assessment: what's clinically useful
+- The Future of Lung Transplantation
+- The Effect of Body Mass Index on Outcomes among COVID-19 Patients with Left Ventricular Assist Devices: A Multi-Institut
+- Health-Related Quality of Life (HRQOL) among Patients with Immune Thrombocytopenia (Itp) Treated with Fostamatinib in th
 
-print("\nSample blank-event talk titles:")
-for x in b["talk_title"].dropna().drop_duplicates().sample(10, random_state=1):
-    print("-", str(x)[:120])
+
+
 
 
 
