@@ -1,50 +1,9 @@
-=== EV0-5: rows with a blank event name ===
-Rows: 10,213 of 31,205 (33%)
-HCPs in these rows: 1,453
-HCPs that appear ONLY in these rows: 180
-
-What else is missing in these rows (share null):
-      talk_title: 0% null (named rows: 0%)
-         strt_dt: 100% null (named rows: 0%)
-       event_typ: 100% null (named rows: 11%)
-        postn_nm: 25% null (named rows: 20%)
-    med_event_id: 0% null (named rows: 0%)
-
-By source:
-source
-Publication    8420
-Medverse       1036
-Focus Area      757
-
-Blank rows whose med_event_id event-part matches a named event: 0
-
-Core DAD talks in blank rows: 8 talks / 4 HCPs
-'Hemolysis'-only talks in blank rows: 13 talks / 19 HCPs
-
-Core DAD talk titles with no event name:
-- Long-Term Efficacy and Safety Study of Rilzabrutinib, Oral Bruton Tyrosine Kinase Inhibitor, in Patients with Warm Autoi
-- Assessment of Nipocalimab Effects on Fatigue in Warm Autoimmune Hemolytic Anemia: Results from the Double-Blind Phase 2/
-- What you need to know about warm autoimmune hemolytic anemia
-- Pharmacodynamic Effect of Nipocalimab in Warm Autoimmune Hemolytic Anemia (WAIHA) and Correlation with Clinical Improvem
-- Impact of Rilzabrutinib on Biomarkers of Inflammation and Complement Factors in Warm Autoimmune Hemolytic Anemia (WAIHA)
-- Update: Autoimmune Hemolytic Anemia (Warm and Cold)
-- Adaptive Collaboration Between Emergency Department and Neonatal Intensive Care to Provide Massive Transfusion and Mecha
-- Nipocalimab for Warm Autoimmune Hemolytic Anemia: Results from the Phase 2/3 Randomized Double-Blind Energy Study
-
-Sample blank-event talk titles:
-- CH COVID-19: Poster Review: COVID Vaccine Adverse Events & RMD Flares Secondary includes #0858 & #0896
-- Discussant for the Richard E. Clark Memorial Paper for Cardiopulmonary Failure
-- How I Treat PV Before and After Fibrotic Transformation
-- Whole Blood Transfusion - Updated Indications
-- Integrated Multi-Omic Profiling Identifies Genomic Subtypes Associated with Differential Outcomes after Car-T Therapy in
-- Correlation of Report of Quality of Life and Complementary and Alternative Medicine (CAM) Use among Patients with Immune
-- Lab assessment: what's clinically useful
-- The Future of Lung Transplantation
-- The Effect of Body Mass Index on Outcomes among COVID-19 Patients with Left Ventricular Assist Devices: A Multi-Institut
-- Health-Related Quality of Life (HRQOL) among Patients with Immune Thrombocytopenia (Itp) Treated with Fostamatinib in th
-
-
-
+ex = mx.filter(
+    (F.col("dv1").startswith("0/Qp5ClX") & (F.to_date("service_date") == "2026-08-11") & (F.col("ndc") == "57894052201")) |
+    (F.col("dv1").startswith("05Q7uvRB") & (F.to_date("service_date") == "2026-08-17") & (F.col("ndc") == "57894050101")))
+(ex.select(F.substring("dv1", 1, 8).alias("patient"), F.to_date("service_date").alias("service_date"), "ndc",
+           "data_source", "modifiers", "quantity", "unit_type", "procedure_code", "rendering_npi", "mx_claim_id")
+   .orderBy("patient", "modifiers").show(truncate=False))
 
 
 
