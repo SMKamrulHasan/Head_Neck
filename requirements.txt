@@ -1,3 +1,55 @@
+What we’re trying to count
+
+For Phase 2, we want to count how many Rybrevant infusions each doctor and account gives, and how much drug. Later that gets split into Lung vs H&N.
+
+The problem
+
+On most days, one infusion = one line on the medical claim. But on some days, the same patient, same day, same drug shows up on 2 or 3 lines:
+
+812 cases with 1 line
+85 cases with 2–3 lines (about 1 in 10)
+
+So if we count lines, we get 983 infusions. If we count “patient + day + drug”, we get 897. Which one is right depends on why there are extra lines. In your data there are two different reasons.
+
+Reason 1: “JW” = leftover drug thrown away
+Rybrevant comes in fixed-size vials. If the patient needs less than the vials hold, the rest is thrown away. The clinic bills the used part and the thrown-away part on separate lines, and marks the thrown-away line with JW.
+
+Example (Faspro, 11 Aug 2026):
+
+Line 1: 672 units given to the patient
+Line 2: 32 units thrown away (JW)
+
+So that’s 1 infusion, not 2. Two sub-questions:
+
+Count it as 1 infusion? (Almost certainly yes.)
+For drug amount: use 704 (everything the account bought and used up) or 672 (only what went into the patient)? DDD sales count whole vials bought, so 704 lines up better with sales. Ravi should confirm.
+
+Reason 2: “76” = procedure repeated the same day
+The 76 code means “the doctor did the same procedure again that day.”
+
+Example (Rybrevant IV, 17 Aug 2026, same doctor):
+
+Line 1: 438 units
+Line 2: 437 units, marked 76
+
+The halves are almost equal. It could be:
+
+one infusion billed on two lines (e.g. the dose split for billing), or
+two separate infusions on the same day.
+
+We can’t tell from the data alone; that’s a clinical/billing question for Ravi.
+
+What we need Ravi to decide
+Count one infusion per patient + day + drug (897), or every line (983)?
+For JW lines: count the thrown-away drug in the amount (to match DDD), or leave it out?
+For 76 lines: same infusion, or a second one?
+
+
+
+
+
+
+
 RX before rule : 11 patients, 13 rows
   also in MX   : 1 patients, 1 rows  -> dropped
   RX only      : 10 patients, 12 rows  -> kept
