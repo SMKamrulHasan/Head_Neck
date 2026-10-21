@@ -1,55 +1,22 @@
-# EV0-4: DAD terms, to show which conferences carry disease-area talks
-DAD = pd.read_excel("KOL-Requirement gathering tool-waiha.xlsx", sheet_name="DAD")
+family_summary_df = (
+    df.groupby("conference_family", dropna=False)
+    .agg(
+        n_hcps=("jnj_id", "nunique"),
+        n_talks=("med_event_id", "nunique"),
+        n_rows=(EVENT_NAME_COL, "size"),
+        n_unique_events=("event_name_original", "nunique"),
+        first_year=("_year", "min"),
+        last_year=("_year", "max"),
+        n_years=("_year", "nunique"),
+        dad_core_talks=("med_event_id", lambda s: s[df.loc[s.index, "_dad_core"]].nunique()),        # <-- NEW
+        dad_core_hcps=("jnj_id", lambda s: s[df.loc[s.index, "_dad_core"]].nunique()),               # <-- NEW
+        dad_broad_only_talks=("med_event_id", lambda s: s[df.loc[s.index, "_dad_broad_only"]].nunique()),  # <-- NEW
+        dad_broad_only_hcps=("jnj_id", lambda s: s[df.loc[s.index, "_dad_broad_only"]].nunique()),   # <-- NEW
+    )
+    .reset_index()
 
 
 
-# EV0-4: show disease-area (DAD) talks per family; "broad" terms qualify many non-wAIHA talks
-DAD_TERM_COL = "term"
-BROAD_DAD_TERMS = ["hemolysis", "erythrocyte destruction"]
-
-
-
-def _term_pattern(terms):
-    """Whole-word match on any of the terms (lower-case text expected)."""
-    return r"(?<!\w)(?:" + "|".join(re.escape(t) for t in terms) + r")(?!\w)"
-
-
-
-dad_terms = DAD[DAD_TERM_COL].dropna().astype(str).str.strip().str.lower().tolist()
-core_terms = [t for t in dad_terms if t not in BROAD_DAD_TERMS]
-broad_terms = [t for t in dad_terms if t in BROAD_DAD_TERMS]
-title_lc = df["talk_title"].fillna("").astype(str).str.lower()
-df["_dad_core"] = title_lc.str.contains(_term_pattern(core_terms), regex=True)
-df["_dad_broad_only"] = title_lc.str.contains(_term_pattern(broad_terms), regex=True) & ~df["_dad_core"]
-
-
-# EV0-4: flag DAD talks as core (wAIHA / AIHA term) or broad-only ("Hemolysis" / "Erythrocyte Destruction" only)
-dad_terms = DAD[DAD_TERM_COL].dropna().astype(str).str.strip().str.lower().tolist()
-core_terms = [t for t in dad_terms if t not in BROAD_DAD_TERMS]
-broad_terms = [t for t in dad_terms if t in BROAD_DAD_TERMS]
-title_lc = df["talk_title"].fillna("").astype(str).str.lower()
-df["_dad_core"] = title_lc.str.contains(_term_pattern(core_terms), regex=True)
-df["_dad_broad_only"] = title_lc.str.contains(_term_pattern(broad_terms), regex=True) & ~df["_dad_core"]
-
-
-
-
-        dad_core_talks=("med_event_id", lambda s: s[df.loc[s.index, "_dad_core"]].nunique()),
-        dad_core_hcps=("jnj_id", lambda s: s[df.loc[s.index, "_dad_core"]].nunique()),
-        dad_broad_only_talks=("med_event_id", lambda s: s[df.loc[s.index, "_dad_broad_only"]].nunique()),
-        dad_broad_only_hcps=("jnj_id", lambda s: s[df.loc[s.index, "_dad_broad_only"]].nunique()),
-
-
-
-print("\nFamilies with core DAD talks (wAIHA / AIHA in the title):")
-print(family_summary_df[family_summary_df["dad_core_talks"] > 0]
-      [["display_name", "dad_core_talks", "dad_core_hcps", "dad_broad_only_talks", "dad_broad_only_hcps", "n_hcps"]]
-      .to_string(index=False))
-print("\nTop 10 families by 'Hemolysis'-only talks:")
-print(family_summary_df[family_summary_df["dad_broad_only_talks"] > 0]
-      .sort_values("dad_broad_only_hcps", ascending=False)
-      [["display_name", "dad_broad_only_talks", "dad_broad_only_hcps", "n_hcps"]]
-      .head(10).to_string(index=False))
 
 
 
