@@ -1,54 +1,51 @@
-=== STEP 0: AVAILABLE CONFERENCES ===
-Input rows: 31,205
-Rows with non-blank event_nm: 20,992
+# ============================================================
+# DIAGNOSTIC EV0-5 (read-only: run after cell 4)
+#   Rows with a blank event name are dropped by Step 0. What are they?
+# ============================================================
+import re
+import pandas as pd
 
-Saved: available_conferences.xlsx
+a = conference.copy()
+a["jnj_id"] = a["jnj_id"].astype(str)
+a["_blank"] = a["event_nm"].fillna("").astype(str).str.strip() == ""
+b = a[a["_blank"]]
 
-Unique event names: 988 -> conference families: 493
+print("=== EV0-5: rows with a blank event name ===")
+print(f"Rows: {len(b):,} of {len(a):,} ({len(b) / len(a):.0%})")
+print(f"HCPs in these rows: {b['jnj_id'].nunique():,}")
+only_blank = set(b["jnj_id"]) - set(a.loc[~a["_blank"], "jnj_id"])
+print(f"HCPs that appear ONLY in these rows: {len(only_blank):,}")
 
-Top conference families (by HCPs):
-                                                                          display_name  n_hcps  n_talks  n_rows  n_unique_events  first_year  last_year
-            67th American Society of Hematology (ASH) Annual Meeting & Exposition 2025     495     1503    1733                8        2018       2026
-                                                              2026 ASCO Annual Meeting     435     1193    1465                9        2018       2026
-                             American Heart Association (AHA) Scientific Sessions 2025     266      777     891                6        2019       2026
-    American College of Cardiology 74th Annual Scientific Session & Expo 2025 (ACC.25)     253      999    1175                4        2019       2026
-Tandem Meetings | Transplantation & Cellular Therapy Meetings of ASTCT and CIBMTR 2026     233      535     855                5        2022       2026
-                                                     2025 ATS International Conference     195      665     760                7        2018       2026
-                                  97th Pediatric Academic Societies (PAS) Meeting 2026     160      413     530                5        2019       2026
-                                                              AACR Annual Meeting 2026     143      394     428                6        2018       2026
-                                 American Society of Nephrology (ASN) Kidney Week 2025     101      389     406                6        2019       2026
-                                                        AATS 106th Annual Meeting 2026      91      288     390                2        2025       2026
-                                                       USCAP 114th Annual Meeting 2025      89      331     362                7        2019       2026
-                                                                     Heart Rhythm 2026      87      680    1282                7        2019       2026
-                Heart Failure Society of America (HFSA) Annual Scientific Meeting 2025      79      275     355                6        2019       2026
-                           ACC.72nd Annual Scientific Session & Expo 2023 (ACC.23/WCC)      75      237     246                2        2023       2024
-                                                          62nd STS Annual Meeting 2026      75      230     278                4        2023       2026
-  33rd Congress of the International Society on Thrombosis and Haemostasis (ISTH) 2025      75      184     221                1        2025       2025
-                                45th Annual Meeting & Scientific Sessions (ISHLT 2025)      73      401     647                2        2023       2025
-                                                The Anesthesiology Annual Meeting 2025      68      252     262                6        2021       2026
-                                ISHLT 42nd Annual Meeting and Scientific Sessions 2022      66      129     131                2        2019       2022
-                                                                  ACR Convergence 2025      65      289     318                5        2022       2026
+print("\nWhat else is missing in these rows (share null):")
+for c in ["talk_title", "strt_dt", "event_typ", "postn_nm", "med_event_id"]:
+    print(f"  {c:>14}: {b[c].isna().mean():.0%} null (named rows: {a.loc[~a['_blank'], c].isna().mean():.0%})")
 
-Families with core DAD talks (wAIHA / AIHA in the title):
-                                                                      display_name  dad_core_talks  dad_core_hcps  dad_broad_only_talks  dad_broad_only_hcps  n_hcps
-        67th American Society of Hematology (ASH) Annual Meeting & Exposition 2025               7              7                     6                    6     495
-American College of Cardiology 74th Annual Scientific Session & Expo 2025 (ACC.25)               1              1                     0                    0     253
-                            45th Annual Meeting & Scientific Sessions (ISHLT 2025)               1              1                     0                    0      73
-                                                              ACR Convergence 2025               1              1                     0                    0      65
-                      Thrombosis & Hemostasis Summit of North America - THSNA 2026               1              1                     0                    0      52
+print("\nBy source:")
+print(b["source"].value_counts().to_string())
 
-Top 10 families by 'Hemolysis'-only talks:
-                                                              display_name  dad_broad_only_talks  dad_broad_only_hcps  n_hcps
-                                                         Heart Rhythm 2026                     6                   31      87
-                                         2025 ATS International Conference                     4                    8     195
-                                      International Stroke Conference 2026                     1                    8      40
-                 American Heart Association (AHA) Scientific Sessions 2025                     3                    7     266
-67th American Society of Hematology (ASH) Annual Meeting & Exposition 2025                     6                    6     495
-   AHA Vascular Discovery: From Genes to Medicine Scientific Sessions 2026                     1                    6      19
-                      2020 Highlights of ASH in North America - Washington                     3                    6      19
-                   2020 Highlights of ASH in North America - San Francisco                     2                    5      16
-                         2020 Highlights of ASH in North America - Seattle                     2                    5      17
-                         2020 Highlights of ASH in North America - Chicago                     3                    5      17
+# does the first part of med_event_id (the event) match any named event?
+a["_event_part"] = a["med_event_id"].astype(str).str.split("-").str[0]
+named_parts = set(a.loc[~a["_blank"], "_event_part"])
+b_parts = a.loc[a["_blank"], "_event_part"]
+print(f"\nBlank rows whose med_event_id event-part matches a named event: {int(b_parts.isin(named_parts).sum()):,}")
+
+# disease-area talks among them (these still reach Step 1, which filters on talk_title)
+terms = DAD["term"].dropna().astype(str).str.strip().str.lower().tolist()
+broad = ["hemolysis", "erythrocyte destruction"]
+pat = lambda ts: r"(?<!\w)(?:" + "|".join(re.escape(t) for t in ts) + r")(?!\w)"
+t = b["talk_title"].fillna("").astype(str).str.lower()
+core = t.str.contains(pat([x for x in terms if x not in broad]), regex=True)
+brd = t.str.contains(pat(broad), regex=True) & ~core
+print(f"\nCore DAD talks in blank rows: {b.loc[core, 'med_event_id'].nunique()} talks / {b.loc[core, 'jnj_id'].nunique()} HCPs")
+print(f"'Hemolysis'-only talks in blank rows: {b.loc[brd, 'med_event_id'].nunique()} talks / {b.loc[brd, 'jnj_id'].nunique()} HCPs")
+print("\nCore DAD talk titles with no event name:")
+for x in b.loc[core, "talk_title"].drop_duplicates().head(10):
+    print("-", str(x)[:120])
+
+print("\nSample blank-event talk titles:")
+for x in b["talk_title"].dropna().drop_duplicates().sample(10, random_state=1):
+    print("-", str(x)[:120])
+
 
 
 
