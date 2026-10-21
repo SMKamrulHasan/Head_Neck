@@ -1,0 +1,687 @@
+	• Business objective remains the same: determine how Rybrevant/Rybrevant Faspro utilization and sales should be split between Lung and Head & Neck, since the product can span both indications. Jake Guinto clarified that Lazcluze should not be included in this attribution. [Weekly H&N...ng Session | Meeting]
+	• The proposed framework is now more of a triangulation approach, rather than simply combining every source into one large master dataset. Ryan Larsen described using individual datasets to independently estimate the Lung vs. H&N split, then weighting/triangulating those signals and ultimately applying the resulting split to DDD/867 data. [Weekly H&N...ng Session | Meeting]
+	• CareSet is intended to establish the overall H&N opportunity/ceiling. Other signals discussed include Komodo claims, FinThrive ChargeMaster, McKesson EMR, and field insights. [Weekly H&N...ng Session | Meeting]
+	• FinThrive/ChargeMaster is different from claims: it represents facility charges recorded around drug administration before claim submission. Its national sample is smaller than claims, but Ryan Larsen said it provides more complete capture for the accounts represented and currently gives a cleaner H&N/Lung bifurcation. [Weekly H&N...ng Session | Meeting]
+	• Claims will require careful attribution because a patient can have both Lung and H&N diagnosis codes, so claims alone may not cleanly identify indication. [Weekly H&N...ng Session | Meeting]
+	• Competitor-based analysis can still be explored, but the team noted that it may be noisy because products such as Keytruda are used across many indications. [Weekly H&N...ng Session | Meeting]
+	• Field insights are another future signal. Jake Guinto said the team is considering inputs from CAMs, TLLs, FRMs, OCEs, MSLs, and eventually sales reps, but the systematic collection mechanism is still being worked through. [Weekly H&N...ng Session | Meeting]
+Ravikiran Sriram has already walked you through Komodo claims, linked data, DDD, and Exponent data. [Weekly H&N...ng Session | Meeting]
+
+
+
+
+
+
+
+Phase 1 Objectives
+1. Get Access and Ingest Core Datasets
+Ravi's first recommendation was to obtain access to the identified datasets and start exploring them. These include:
+	• Claims
+	• DDD Sales
+	• Exponent Sales
+	• OPAL
+	• DMN_CUST
+	The immediate deliverable is not modeling but understanding the structure, keys, mappings, coverage, and quality of the data. [H&N Working Session | Meeting]
+	
+2. Build an HCP Universe
+The main Phase 1 goal discussed was:
+	Identify HCPs who treat Lung patients, Head & Neck patients, or both. [H&N Working Session | Meeting]
+	Target segmentation:
+	Segment	Description
+	Lung Only	Treats lung patients only
+	H&N Only	Treats head & neck patients only
+	Both	Treats both populations
+	This becomes the base universe for downstream attribution. [H&N Working Session | Meeting]
+		
+3. Leverage Existing AD/AI Universe
+You raised a good point that AD/AI has already built an HCP universe.
+Ravi agreed that:
+	• Use the AD/AI flat file as a starting point.
+	• Compare it with what can be derived from claims, diagnosis, and competitor information.
+	• Eventually build the process internally so it can be refreshed automatically. [H&N Working Session | Meeting]
+			
+4. Obtain Diagnosis Codes
+This is probably the biggest dependency.
+Need from Siddhant/team:
+	• Lung diagnosis codes
+	• Head & Neck diagnosis codes
+	• Potential competitor diagnosis mappings
+	Without diagnosis information, you cannot reliably identify indication. [H&N Working Session | Meeting]
+				
+5. Validate HCP ↔ Account Mapping
+Build the linkage:
+Plain Text
+
+Claims
+↓
+NPI
+↓
+DMN_CUST
+↓
+JJ_ID
+↓
+OPAL
+↓
+L2/L3 Account
+Questions to answer:
+	• Can every NPI map to a JJ ID?
+	• How much coverage is obtained through OPAL?
+	• How many HCPs have L2 mappings?
+	• How many only have L3 mappings?
+	This is critical before any account-level modeling. [H&N Working Session | Meeting]
+
+6. Profile Sales Data
+For DDD and Exponent:
+Identify:
+	• Rybrevant volume
+	• Lazcluze volume
+	• Product usage trends
+	• Account coverage
+	• HCP coverage
+	Understand:
+		○ Which products appear in DDD
+		○ Which products appear in Exponent
+		○ Whether Lung-focused activity can already be observed in the data
+		Ravi specifically shared sample queries as starting points for this exploration. [H&N Working Session | Meeting]
+
+7. Create Initial Exploratory Analysis (EDA)
+Before modeling, build exploratory views such as:
+HCP-Level
+	• Number of HCPs
+	• HCPs by specialty
+	• HCPs by diagnosis group
+	• HCPs treating both indications
+	Account-Level
+		○ Number of L1/L2/L3 accounts
+		○ Account sales distribution
+		○ Affiliation network coverage
+		Claims-Level
+			§ Patient counts
+			§ NPI counts
+			§ Diagnosis distributions
+			§ Product distributions
+			These analyses were aligned with Ravi's recommendation to "EDA perform" the datasets before moving to Phase 2. [H&N Working Session | Meeting]
+
+What I Would Deliver at the End of Phase 1
+As a data scientist, I would define Phase 1 success as producing:
+Dataset Readiness
+✅ Access to all required tables
+Golden Mapping
+✅ NPI → JJ_ID → OPAL hierarchy
+HCP Universe
+✅ Lung-only HCPs
+✅ H&N-only HCPs
+✅ Mixed HCPs
+Account Universe
+✅ L2/L3 account mapping
+Business Rules
+✅ Claim filtering rules
+✅ Product mapping rules
+✅ Diagnosis code mapping
+EDA Report
+✅ Coverage analysis
+✅ Data quality findings
+✅ Overlap analysis between Lung and Head & Neck populations
+Recommendation for Phase 2
+✅ Feasibility assessment and proposed attribution modeling approach
+In short, Phase 1 = Data discovery, universe creation, diagnosis-based segmentation, hierarchy mapping, and EDA. The actual PU learning / attribution model training would start in Phase 2 once the universe and mappings are validated
+
+Granular Breakdown of Each Data Table Discussed
+During the H&N Working Session, Sriram, Ravikiran [JANUS NON-J&J] walked through five core datasets that will form the foundation of the Head & Neck vs. Lung attribution workstream. [H&N Working Session | Meeting]
+
+1. Claims Data
+Purpose
+Patient-level treatment evidence used to determine disease indication (Lung vs Head & Neck) and prescribing behavior. This is likely the most clinically meaningful dataset because it contains diagnosis-related information. [H&N Working Session | Meeting]
+Key Columns
+Column	Meaning	Why Important
+DV1 + DV2	Patient identifiers	Combined to create unique patient identifier
+NDC Code	Drug/Product Code	Identifies Rybrevant, Lazcluze, competitors
+Prescriber NPI	HCP identifier	Links patient treatment to physician
+Written Date	Date physician wrote prescription	Prescribing activity
+Fill Date	Date patient actually received drug	Treatment activity
+Claim Type	Paid / Reversed / Rejected	Filtering valid claims
+Claim Status	Final claim status	Determines usable records
+Quantity	Amount prescribed	Future utilization analysis
+Days Supply	Treatment duration	Future longitudinal analyses
+[H&N Working Session | Meeting]
+Business Rules Discussed
+✅ Include:
+• Paid claims
+❌ Exclude:
+	• Rejected claims
+	• Reversed claims
+	Reason: Rejected or reversed claims do not represent actual drug utilization. [H&N Working Session | Meeting]
+Critical Attributes for H&N Project
+Prescriber NPI
+Represents the physician.
+Need:
+Prescriber NPI     ↓DMN_CUST     ↓J&J ID
+to connect physician activity across systems. [H&N Working Session | Meeting]
+Open Questions
+Need from Siddhant:
+	• Lung diagnosis codes
+	• Head & Neck diagnosis codes
+	• Competitor diagnosis codes
+	These will drive disease segmentation. [H&N Working Session | Meeting]
+			
+2. DDD Sales Dataset
+Purpose
+Non-retail product sales.
+Captures sales occurring at outpatient clinics, infusion centers, hospitals, and account-level facilities. Ravi indicated most Rybrevant volume is expected to appear here. [H&N Working Session | Meeting]
+
+Hierarchy Level
+DDD=L1 Account Level=Hospital / Outlet / Account
+Not physician level. [H&N Working Session | Meeting]
+
+Key Columns
+Column	Meaning	Importance
+CALN_DT	Transaction Date	Time filtering
+JJ_ID	Account identifier	Account-level analysis
+PROD_NM	Product Name	Rybrevant / Lazcluze / Faspro
+UNS	Units Sold	Volume
+EQUI_UNS	Equalized Units	Standardized volume metric
+[H&N Working Session | Meeting]
+Key Products Discussed
+	• Rybrevant
+	• Lazcluze
+	• Rybrevant Faspro
+	[H&N Working Session | Meeting]
+	Equivalized Units (EQUI_UNS)
+	Ravi highlighted that:
+	UNS=raw units
+	EQUI_UNS=normalized units
+	Example:
+		○ Different dosage strengths
+		○ Different formulations
+		are standardized into a common measurement for comparison. He suggested EQUI_UNS may be a more useful metric. [H&N Working Session | Meeting]
+		
+		Why Important for H&N
+		The business objective is:
+		Given account purchases at L1,predict:    Lung utilization    vs    Head & Neck utilization
+		This is one of the primary modeling datasets. [H&N Working Session | Meeting]
+					
+3. Exponent Sales Dataset
+Purpose
+Retail prescription sales.
+Captures activity closer to physician prescribing behavior. [H&N Working Session | Meeting]
+
+Hierarchy Level
+Exponent=L0=HCP Level
+Physician level information. [H&N Working Session | Meeting]
+
+Key Characteristics
+Feature	Exponent
+Granularity	HCP
+Retail Sales	Yes
+Contains HCP JJ ID	Yes
+Strong for Provider Analysis	Yes
+[H&N Working Session | Meeting]
+
+DDD vs Exponent
+Area	DDD	Exponent
+Level	L1	L0
+Entity	Account	Physician
+Type	Non-retail	Retail
+Primary Use	Account attribution	HCP attribution
+Main Drugs Expected	Rybrevant	More Lazcluze activity
+[H&N Working Session | Meeting]
+					
+4. OPAL Hierarchy Table
+Purpose
+Most important integration table.
+Allows mapping between:
+Physician↓Outlet↓Account↓Health System
+[H&N Working Session | Meeting]
+
+Hierarchy Explained
+Level	Meaning
+L0	Physician / HCP
+L1	Outlet / Hospital Pharmacy
+L2	Hospital / Account
+L3	Larger Account
+L4-L5	Enterprise Health System
+[H&N Working Session | Meeting]
+
+Example
+Doctor Smith    ↓UPenn Hospital Location    ↓UPenn Philadelphia    ↓UPenn Health System
+Would roll through OPAL hierarchy. [H&N Working Session | Meeting]
+
+Key Columns
+Column	Meaning
+CHILD_ID	HCP JJ ID
+CHILD_NAME	Physician Name
+CHILD_LEVEL	Usually 0
+CHILD_TYPE	Practitioner Type
+PARENT_ID	Affiliated Account
+PARENT_NAME	Account Name
+PARENT_LEVEL	1-5
+RELATION_TYPE	Affiliation Type
+[H&N Working Session | Meeting]
+
+Relationship Type Filter
+Discussed filter:
+ONC_AFFILIATION
+Used because:
+	• HCPs may have multiple affiliations
+	• Oncology affiliation is relevant for Rybrevant analysis
+	Ravi specifically recommended using ONC affiliation mappings. [H&N Working Session | Meeting]
+	
+	Preferred Parent Mapping Rule
+	Priority:
+	Parent Level 2      ↓Parent Level 3
+	Use L2 when available, otherwise L3. [H&N Working Session | Meeting]
+						
+5. DMN_CUST
+Purpose
+Reference/master customer table.
+Used to bridge external provider identifiers with J&J identifiers. [H&N Working Session | Meeting]
+
+Key Role
+Provides:
+Mapping
+NPI → JJ_ID
+[H&N Working Session | Meeting]
+Without DMN_CUST:
+Claims Data       ↓Prescriber NPI
+cannot easily connect to:
+	• OPAL
+	• Sales
+	• Account hierarchy
+	With DMN_CUST:
+	Claims  ↓NPI  ↓DMN_CUST  ↓JJ_ID  ↓OPAL  ↓Account
+	[H&N Working Session | Meeting]
+	
+	Recommended End-to-End Data Pipeline
+	Based on the discussion, the future pipeline likely looks like:
+	Plain Text
+	
+	CLAIMS
+	└─ NPI
+	↓
+	DMN_CUST
+	↓
+	JJ_ID
+	↓
+	OPAL
+	↓
+	L2/L3 Account
+	 
+	DDD Sales
+	↓
+	L1 Account Sales
+	 
+	Exponent
+	↓
+	HCP Sales
+	 
+	Diagnosis Codes
+	↓
+	H&N vs Lung Labels
+	 
+	Combined Dataset
+	↓
+	PU / Attribution Model
+	This appeared to be the architecture Ravi was guiding toward: use Claims + Diagnosis Codes for disease identification, DMN_CUST and OPAL for hierarchy mapping, then combine with DDD and Exponent sales data to build account-level Head & Neck vs Lung attribution models.
+
+Summary of H&N Working Session
+Meeting: H&N Working Session
+Organizer: Hasan, S M Kamrul [JJCUS]
+Participants: Hasan, S M Kamrul [JJCUS], Sriram, Ravikiran [JANUS NON-J&J] (Siddhant did not join)
+Transcript: Available and reviewed. [H&N Working Session | Meeting]
+Objective
+The session focused on understanding the data landscape for the Head & Neck attribution project, reviewing available oncology datasets, discussing access requirements, and aligning on the Phase 1 and Phase 2 analytical approach. [H&N Working Session | Meeting]
+Key Discussions
+1. Data Sources and Access
+	• Ravi prepared a list of oncology-related datasets, including ODP links, descriptions, schemas, and sample SQL queries.
+	• Approximately nine primary tables have been identified initially.
+	• Kamrul will request ODP access for the required datasets.
+	• Access approvals typically take 1-2 days.
+	• Ravi will continue to augment the dataset inventory and share updates. [H&N Working Session | Meeting]
+2. Primary Tables Reviewed
+The following datasets were discussed in detail:
+Claims Data
+	• Contains patient treatment activity and prescription information.
+	• Key elements: 
+		○ NPI-based prescriber information
+		○ Diagnosis-related data
+		○ Claim status and claim type
+		○ Fill date vs. written date
+		○ Business rules will be provided for filtering valid claims (e.g., paid claims vs. rejected/reversed claims). [H&N Working Session | Meeting]
+DDD Sales (Non-Retail Sales)
+	• Sales captured at the L1 account/outlet level.
+	• Primarily relevant for Rybrevant and Rybrevant-Faspro sales.
+	• Includes account-level JJ IDs.
+	• Important metrics include units and equivalent units (EquiTRX-style measures). [H&N Working Session | Meeting]
+Exponent Sales (Retail Sales)
+	• Captures HCP-level (L0) prescription activity.
+	• More representative of pharmacy-level retail dispensing.
+	• Likely to capture more Lazcluze activity than DDD sales. [H&N Working Session | Meeting]
+OPAL Hierarchy
+	• Used to map: 
+		○ HCPs (L0)
+		○ Outlets (L1)
+		○ Accounts/Hospitals (L2-L5)
+		○ Enables roll-up from physician-level activity to account-level analysis.
+		○ Oncology affiliations ("ONC affiliation") were identified as the preferred relationship mapping.
+		○ Preference is to use L2 affiliations when available, otherwise L3. [H&N Working Session | Meeting]
+DMN Cust
+	• Needed to map NPI IDs to J&J IDs.
+	• Especially important for claims-based analysis. Ravi agreed to add this table to the shared inventory. [H&N Working Session | Meeting]
+Methodology Discussion
+Phase 1
+	• Build an initial HCP universe using: 
+		○ Diagnosis codes
+		○ Competitor data
+		○ Existing HCP universe from the AD/AI team
+		○ Segment HCPs into: 
+			§ Head & Neck only
+			§ Lung only
+			§ Both Head & Neck and Lung
+			§ Begin exploratory analysis while claims access for Head & Neck continues to evolve. [H&N Working Session | Meeting]
+Phase 2
+	• Once Head & Neck claims data becomes available: 
+		○ Build an automated pipeline
+		○ Incorporate Rybrevant-specific data flows
+		○ Enhance attribution and segmentation models using actual treatment data. [H&N Working Session | Meeting]
+Important Business Logic Captured
+	• NDC codes identify products, not diagnoses.
+	• Diagnosis codes will be needed to distinguish Lung vs. Head & Neck populations.
+	• Paid claims should be included in analyses.
+	• Rejected and reversed claims should generally be excluded.
+	• NPI is a universal provider identifier, whereas a JJ ID is internal to J&J and exists at multiple hierarchy levels. [H&N Working Session | Meeting]
+Decisions / Agreements
+	• Kamrul will request access to the identified datasets in ODP.
+	• Ravi will share: 
+		○ Dataset inventory spreadsheet
+		○ Sample SQL queries
+		○ DMN Cust information
+		○ Business rules documentation
+		○ Draft Phase 1 / Phase 2 methodology after Siddhant review. [H&N Working Session | Meeting]
+Next Steps
+Kamrul
+	1. Submit ODP access requests for required tables.
+	2. Explore DDD, Exponent, Claims, and OPAL datasets using Ravi's sample queries.
+	3. Validate accessibility through the RS Jet Omnichannel connection. [H&N Working Session | Meeting]
+Ravi
+	1. Share the dataset inventory spreadsheet.
+	2. Add DMN Cust table details.
+	3. Provide business rules for claims and sales filtering.
+	4. Share the reviewed Phase 1 / Phase 2 methodology document.
+	5. Schedule a follow-up session to review additional datasets. [H&N Working Session | Meeting]
+Executive Summary (3-4 lines)
+The meeting focused on understanding the oncology data ecosystem for the H&N attribution project. Ravi walked through the key datasets (Claims, DDD Sales, Exponent Sales, OPAL, and DMN Cust), their business meaning, and how they can be used to build HCP and account-level attribution pipelines. The team aligned on an initial Phase 1 approach using diagnosis codes and existing HCP universes, followed by a Phase 2 automated pipeline once Head & Neck claims data becomes available. Access requests, business rules, and methodology documentation were identified as immediate next steps
+
+Steps:
+
+Phase 1 Data Pipeline
+Step 1: Extract Core Data Sources
+Pull data from:
+Plain Text
+
+1. Claims
+2. DDD Sales
+3. Exponent Sales
+4. OPAL
+5. DMN_CUST
+Use Ravi's sample queries as the starting point. [H&N Working Session | Meeting]
+
+Step 2: Create HCP Master Table
+Claims
+Extract:
+SQL
+
+prescriber_npi
+ndc_code
+written_date
+fill_date
+claim_type
+claim_status
+Apply business filters:
+SQL
+
+claim_type = 'PAID'
+Exclude:
+SQL
+
+REJECTED
+REVERSED
+as discussed in the meeting. [H&N Working Session | Meeting]
+Output
+Plain Text
+
+hcp_claims
+----------------------
+NPI
+Product
+Date
+Patient_Count
+Claim_Count
+
+Step 3: Convert NPI → JJ_ID
+Join Claims to DMN_CUST.
+Plain Text
+
+Claims
+↓
+Prescriber_NPI
+↓
+DMN_CUST
+↓
+JJ_ID
+Result:
+Plain Text
+
+hcp_master
+-------------
+NPI
+JJ_ID
+This is essential because sales and OPAL are JJ_ID based. [H&N Working Session | Meeting]
+
+Step 4: Build HCP → Account Mapping
+Using OPAL:
+Plain Text
+
+Child_ID (HCP JJ ID)
+↓
+Parent_ID
+Parent_Level
+Parent_Name
+Filter:
+Plain Text
+
+ONC_AFFILIATION
+Use hierarchy rule:
+Plain Text
+
+Prefer L2
+Else L3
+which Ravi specifically recommended. [H&N Working Session | Meeting]
+Result
+Plain Text
+
+hcp_account_map
+ 
+HCP_JJ_ID
+L2_ACCOUNT_ID
+L2_ACCOUNT_NAME
+ 
+or
+ 
+L3_ACCOUNT_ID
+L3_ACCOUNT_NAME
+
+Step 5: Build Disease Universe
+This is the most important Phase 1 deliverable.
+Need diagnosis codes for:
+Plain Text
+
+Lung
+Head & Neck
+Competitors
+ 
+Once obtained:
+HCP Segmentation
+For each physician:
+Plain Text
+
+HCP_A
+Lung patients only
+ 
+HCP_B
+H&N patients only
+ 
+HCP_C
+Both
+Output:
+Plain Text
+
+provider_universe
+ 
+JJ_ID
+LUNG_FLAG
+HN_FLAG
+BOTH_FLAG
+This is exactly the segmentation Ravi described. [H&N Working Session | Meeting]
+
+Step 6: Bring in Sales Data
+DDD
+Account-level sales
+Plain Text
+
+L1 Accounts
+Rybrevant
+Lazcluze
+Faspro
+Metrics:
+Plain Text
+
+UNS
+EQUI_UNS
+Exponent
+HCP-level sales
+Plain Text
+
+JJ_ID
+Date
+Sales
+[H&N Working Session | Meeting]
+
+Step 7: Roll Everything to Account Level
+Create:
+Plain Text
+
+Account
+↓
+Linked HCPs
+↓
+Disease Mix
+↓
+Sales
+Example:
+Plain Text
+
+Penn Hospital
+ 
+HCPs:
+HCP1 -> Lung
+HCP2 -> Lung
+HCP3 -> H&N
+HCP4 -> Both
+ 
+DDD Sales:
+Rybrevant = 100
+Features:
+Plain Text
+
+lung_hcp_count
+hn_hcp_count
+both_hcp_count
+total_hcp_count
+ 
+ddd_sales
+exponent_sales
+
+Step 8: Build Phase 1 Analytical Dataset
+Final table:
+Plain Text
+
+ACCOUNT_FEATURES
+ 
+account_id
+ 
+lung_hcp_count
+hn_hcp_count
+both_hcp_count
+ 
+rybrevant_sales
+lazcluze_sales
+faspro_sales
+ 
+claim_count
+patient_count
+ 
+specialty_mix
+At this point:
+✅ Data mapped
+✅ HCP universe created
+✅ Account affiliations created
+✅ Disease segmentation created
+✅ Sales attached
+
+Step 9: Perform EDA
+Questions you should answer:
+HCP Coverage
+Plain Text
+
+How many HCPs?
+ 
+Lung only?
+H&N only?
+Both?
+Account Coverage
+Plain Text
+
+How many Accounts?
+ 
+Top L2 Accounts?
+Top L3 Accounts?
+Sales Coverage
+Plain Text
+
+Rybrevant Accounts?
+Lazcluze Accounts?
+Overlap
+Plain Text
+
+What % of HCPs treat both indications?
+ 
+What % of sales come from mixed accounts?
+
+End-State of Phase 1
+The final deliverable should be:
+Plain Text
+
+Claims
+↓
+DMN_CUST
+↓
+HCP JJ_ID
+↓
+OPAL
+↓
+Account Mapping
+ 
++
+DDD Sales
++
+Exponent Sales
++
+Diagnosis Segmentation
+ 
+----------------------------
+ 
+Unified Account/HCP Universe
+ 
+Then in Phase 2, you can use this universe to build the attribution model that predicts whether Rybrevant sales at an account are attributable to Lung vs Head & Neck indications. [H&N Working Session | Meeting]
+For your project specifically, I would focus first on getting Claims → DMN_CUST → OPAL working end-to-end. That mapping layer is the critical dependency; without it, DDD and Exponent sales cannot be connected back to physicians and disease populations.
+
