@@ -22,6 +22,44 @@
 
 
 
+Hi Ravi, a question on counting Rybrevant administrations in MX_RYB_CLAIMS.
+
+If we group medical claim lines by patient (dv1+dv2) + service_date + NDC, we get 897 groups from 983 lines:
+
+812 groups = 1 line
+84 groups = 2 lines
+1 group = 3 lines
+
+No group mixes PROFESSIONAL and INSTITUTIONAL lines. The extra lines come from the same billing source, and their modifiers differ:
+
+Example 1 – waste line (JW)
+
+patient	service_date	NDC	data_source	modifiers	quantity
+0/Qp5ClX…	2026-08-11	57894052201 (Faspro)	INSTITUTIONAL	|TB|PO|	?
+0/Qp5ClX…	2026-08-11	57894052201 (Faspro)	INSTITUTIONAL	|JW|TB|PO|	?
+				total	704
+
+JW = drug discarded/wasted. So this looks like one administration plus the wasted part of the vial.
+
+Example 2 – repeat line (76)
+
+patient	service_date	NDC	data_source	modifiers	quantity
+05Q7uvRB…	2026-08-17	57894050101 (Rybrevant)	PROFESSIONAL	|JZ|	?
+05Q7uvRB…	2026-08-17	57894050101 (Rybrevant)	PROFESSIONAL	|76|JZ|	?
+				total	875
+
+76 = repeat procedure by the same physician; JZ = no waste. This could be a second administration on the same day, or the same one billed again.
+
+Questions:
+
+Should we count one administration per patient + date + NDC (897), or each line (983)?
+For JW lines: keep the quantity (the account bought and used up that vial, so it matches DDD sales) or exclude it (only drug actually given)?
+For 76 lines: count as a second administration or the same one?
+
+
+
+
+
 
 
 
