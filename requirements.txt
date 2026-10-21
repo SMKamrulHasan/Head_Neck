@@ -1,3 +1,20 @@
+dup = (mx.groupBy("dv1", "dv2", "service_date", "ndc")
+         .agg(F.count("*").alias("lines"),
+              F.countDistinct("data_source").alias("n_sources"),
+              F.collect_set("data_source").alias("sources"),
+              F.collect_set("modifiers").alias("modifiers"),
+              F.sum("quantity").alias("total_qty")))
+dup.groupBy("lines", "n_sources").count().orderBy("lines", "n_sources").show()      # how common is each case
+dup.filter("n_sources > 1").show(20, False)                                          # professional + facility pairs
+dup.filter("lines > 1 AND n_sources = 1").show(20, False)                            # same source, e.g. JW waste lines
+
+
+
+
+
+
+
+
 Suggested agenda (60 min)
 Recap of the problem and the proposed approach, using the notebook’s flow diagram (5 min)
 Business requirements, with stakeholders (15 min)
