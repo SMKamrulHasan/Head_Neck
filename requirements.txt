@@ -7,6 +7,7 @@ Key decisions
 		2. H&N + Lung: HCP appears in both the H&N cohort and current Rybrevant writers. Since Rybrevant is currently being analyzed through its lung usage, the overlap provides the pre-launch mixed HCP segment.
 		3. Lung/Rybrevant only: HCP is a Rybrevant writer but is not in the H&N cohort.
 		○ MX/RX claims: Already contain NPI/HCP-level information and should be rolled up to J&J ID/HCP level.
+		○ Xponent Sales Data: L0 level (HCP level) - Retail Sale - captures patient level pharmacy. Requires additional work because it is at L0 account level. It needs to be rolled upto L2/L3 level through OPAL
 		○ DDD: Requires additional work because it is at L1 account level. It needs to be rolled upto L2/L3 level through OPAL
 			§ Level	Meaning
 			L0	Physician / HCP
