@@ -1,3 +1,30 @@
+Table	Current dates
+MX_RYB_CLAIMS	3 Aug – 1 Sep 2026
+RYB_LINK_CLAIMS	6 – 30 Jul 2026
+RYB_DDD_Sales	3 – 31 Jul 2026
+
+
+
+When we map DDD buyers to accounts through OPAL_Affiliation_Levels:
+
+DDD jnj_id	IDs	Share of DDD units
+Found as an outlet (L1) → one L2/L3 account	608	56.1%
+Not in OPAL at all	594	43.5%
+In OPAL but no L2/L3	4	0.4%
+
+OPAL_Affiliation_Levels seems to contain only doctor-level rows (child level 0, ONC affiliation), so an outlet with no ONC-affiliated doctor doesn’t appear. Questions:
+
+Can we get the outlet → L2/L3 rows directly from cdp.d_provider_hierarchy_pd (child = outlet, not only child = doctor)?
+If so, should the ONC filter still apply to outlet rows, or only to doctor rows?
+Is DDD jnj_id always an L1 outlet, or can it be an L2/L3 account or another type?
+
+
+
+
+
+
+
+
 What we’re trying to count
 
 For Phase 2, we want to count how many Rybrevant infusions each doctor and account gives, and how much drug. Later that gets split into Lung vs H&N.
