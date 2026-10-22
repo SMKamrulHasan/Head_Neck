@@ -1,7 +1,7 @@
 HCP Segmentation:
 
 Key decisions
-	• HCP segmentation approach: Use the existing Head & Neck HCP cohort produced by the LE/AI team and compare it with Rybrevant prescribers from the past 52 weeks at the J&J ID/HCP level.
+	• HCP segmentation approach: Use the existing Head & Neck HCP cohort data (Rybrevent_HNSCC_HV_CLAIMS) produced by the LE/AI team and compare it with Rybrevant prescribers from the past 52 weeks at the J&J ID/HCP level from our dataiku data.
 	• The overlap will create three practical segments: 
 		1. H&N only: HCP appears in the H&N cohort but not among current Rybrevant writers.
 		2. H&N + Lung: HCP appears in both the H&N cohort and current Rybrevant writers. Since Rybrevant is currently being analyzed through its lung usage, the overlap provides the pre-launch mixed HCP segment.
