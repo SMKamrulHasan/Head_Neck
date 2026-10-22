@@ -1,3 +1,25 @@
+HCP Segmentation:
+
+Key decisions
+	• HCP segmentation approach: Use the existing Head & Neck HCP cohort produced by the LE/AI team and compare it with Rybrevant prescribers from the past 52 weeks at the J&J ID/HCP level.
+	• The overlap will create three practical segments: 
+		1. H&N only: HCP appears in the H&N cohort but not among current Rybrevant writers.
+		2. H&N + Lung: HCP appears in both the H&N cohort and current Rybrevant writers. Since Rybrevant is currently being analyzed through its lung usage, the overlap provides the pre-launch mixed HCP segment.
+		3. Lung/Rybrevant only: HCP is a Rybrevant writer but is not in the H&N cohort.
+		○ MX/RX claims: Already contain NPI/HCP-level information and should be rolled up to J&J ID/HCP level.
+		○ DDD: Requires additional work because it is at L1 account level. It needs to be rolled down to L0/HCP level through OPAL, using specific business rules so that only relevant HCPs from each L1 account are selected.
+		○ EMR/McKesson: Can provide another HCP-level source containing physician NPI and treatment-related information. J&J ID can then be obtained through DMN mapping.
+		○ Diagnosis codes are not needed for the initial HCP segmentation. They may be explored later for the broader attribution work.
+		○ A separate notebook should be created for HCP segmentation rather than mixing this workflow with the existing analysis notebook.
+Date window
+The team discussed making the source tables cover a common period beginning around October 1, 2025, providing enough history for the 52-week analysis. The notebook can then apply the appropriate upper-date filter, including the existing August 31, 2026 cutoff where needed.
+
+
+
+
+
+
+
 Table	Current dates
 MX_RYB_CLAIMS	3 Aug – 1 Sep 2026
 RYB_LINK_CLAIMS	6 – 30 Jul 2026
