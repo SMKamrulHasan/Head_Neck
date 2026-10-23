@@ -1,5 +1,5 @@
-dkuspark.write_with_schema(dataiku.Dataset("HN_FASPRO_ACCOUNT_SEGMENTS"), ins)        # one row per account + segment
-dkuspark.write_with_schema(dataiku.Dataset("HN_FASPRO_DDD_WEEKLY_SEGMENTS"), weekly)  # account x week sales split
+dkuspark.write_with_schema(dataiku.Dataset("HN_FASPRO_ACCOUNT_SEGMENTS"), acct_seg)
+dkuspark.write_with_schema(dataiku.Dataset("HN_FASPRO_DDD_WEEKLY_SEGMENTS"), weekly)
 print("saved")
 
 
