@@ -1,100 +1,56 @@
-h = df["hn_cohort"]
-coh = (h.select(clean(pick(h, "NPI")).alias("npi"), clean(pick(h, "J&J ID")).alias("cohort_jnj_id"),
-                clean(pick(h, "Mapped Account JNJ ID")).alias("cohort_account_id"),
-                F.upper(clean(pick(h, "Mapped Account JNJ Level"))).alias("cohort_account_level"),
-                clean(pick(h, "Mapped Account Name")).alias("cohort_account_name"),
-                clean(pick(h, "Treating Patient Volume - HV (2 years)")).cast("double").alias("hn_pts_2y"))
-         .join(npi_jnj.select("npi", F.col("jnj_id").alias("dmn_jnj_id")), "npi", "left")
-         .withColumn("jnj_id", F.coalesce("cohort_jnj_id", "dmn_jnj_id")))
-coh = to_account(coh, "jnj_id").withColumnRenamed("account_id", "opal_account_id")
-coh = coh.withColumn("cohort_account", F.when(F.col("cohort_account_level").isin("L2", "L3"), F.col("cohort_account_id")))
-for src, acc in [("opal", F.col("opal_account_id")), ("cohort", F.coalesce("cohort_account", "opal_account_id"))]:
-    n = coh.select("npi").distinct().count(); m = coh.filter(acc.isNotNull()).select("npi").distinct().count()
-    print(f"H&N account source = {src:6s}: LE.AI HCPs placed on an account {m:,} of {n:,}")
+segs = ["H&N only", "H&N + Lung", "Lung only"]
+lv = score.pivot_table(index="segment", columns="account_level", values=["accounts", "faspro_ddd_units"], aggfunc="sum").fillna(0)
+fig, axes = plt.subplots(1, 2, figsize=(13, 4))
+for ax, metric, title in [(axes[0], "accounts", "Accounts per segment"), (axes[1], "faspro_ddd_units", "FASPRO DDD units YTD per segment")]:
+    t = lv[metric].reindex(segs).fillna(0)
+    t.plot(kind="bar", stacked=True, ax=ax, color=["#1f77b4", "#ff7f0e", "#999999"][:t.shape[1]])
+    ax.set_title(title); ax.set_xlabel(""); plt.setp(ax.get_xticklabels(), rotation=0)
+    for i, v in enumerate(t.sum(axis=1)):
+        ax.text(i, v, f"{v:,.0f}", ha="center", va="bottom")
+plt.tight_layout(); plt.show()
 
-acc_col = F.col("opal_account_id") if HN_ACCOUNT_SOURCE == "opal" else F.coalesce("cohort_account", "opal_account_id")
-hcp_acc = (coh.withColumn("account_id", acc_col).filter("account_id IS NOT NULL")
-              .groupBy("account_id", "npi").agg(F.max("hn_pts_2y").alias("hn_pts_2y")))
-hn_accounts = (hcp_acc.groupBy("account_id")
-                      .agg(F.countDistinct("npi").alias("hn_hcps"), F.sum("hn_pts_2y").alias("hn_pts_2y")).cache())
-print("H&N accounts:", f"{hn_accounts.count():,}")
+wk = (weekly.groupBy("week").pivot("segment", list(SEG_COLORS)).agg(F.sum("faspro_units")).fillna(0)
+            .orderBy("week").toPandas().set_index("week"))
+fig, ax = plt.subplots(figsize=(13, 4))
+for col in wk.columns:
+    ax.plot(wk.index, wk[col], label=col, color=SEG_COLORS.get(col), linewidth=2)
+ax.set_title("Weekly FASPRO DDD units by segment"); ax.set_ylabel("equivalized units"); ax.legend(ncol=5, fontsize=8)
+plt.tight_layout(); plt.show()
 
+p = ins.filter("DDD > 0").select("account_id", "segment", "DDD").toPandas().sort_values("DDD", ascending=False)
+p["cum_pct"] = 100 * p.DDD.cumsum() / p.DDD.sum()
+for n in (10, 50, 100):
+    if len(p) >= n:
+        print(f"Top {n} accounts buy {p.cum_pct.iloc[n - 1]:.1f}% of mapped FASPRO DDD units (of {len(p):,} buying accounts)")
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.plot(range(1, len(p) + 1), p.cum_pct.values); ax.axhline(80, ls="--", color="grey")
+ax.set_xlabel("accounts (ranked by FASPRO units)"); ax.set_ylabel("cumulative % of units"); ax.set_title("Concentration of FASPRO DDD")
+plt.tight_layout(); plt.show()
 
-
-
-
-
-
-in_win = F.col("day").isNull() | F.col("day").between(F.lit(START_DATE), F.lit(END_DATE))   # real date, not week start
-lung_acct = (activity.filter(in_win & F.col("account_id").isNotNull())
-             .groupBy("account_id").pivot("source", ["DDD", "XPONENT", "MX", "RX", "MCKESSON", "CHARGEMASTER"])
-             .agg(F.round(F.sum("amount"), 2)).fillna(0)
-             .withColumn("lung_present", F.lit(True)))
-hn_set = hn_accounts.withColumn("hn_src", F.lit("LE.AI"))
-if CM_HNSCC_AS_HN:
-    hn_set = hn_set.unionByName(cm_acc.filter("hnscc > 0 AND account_id IS NOT NULL").select("account_id").distinct()
-                                .withColumn("hn_hcps", F.lit(0)).withColumn("hn_pts_2y", F.lit(0.0)).withColumn("hn_src", F.lit("CHARGEMASTER_HNSCC")))
-if MCKESSON_HN_DX_AS_HN:
-    hn_set = hn_set.unionByName(mk_hn.withColumn("hn_hcps", F.lit(0)).withColumn("hn_pts_2y", F.lit(0.0)).withColumn("hn_src", F.lit("MCKESSON_HN_DX")))
-print("H&N universe accounts by source:")
-hn_set.groupBy("hn_src").agg(F.countDistinct("account_id").alias("accounts")).show(truncate=False)
-hn_set = (hn_set.groupBy("account_id").agg(F.max("hn_hcps").alias("hn_hcps"), F.max("hn_pts_2y").alias("hn_pts_2y"),
-                                            F.concat_ws(",", F.sort_array(F.collect_set("hn_src"))).alias("hn_sources"))
-                .withColumn("hn_present", F.lit(True)).cache())
-
-seg_order = ["H&N only", "H&N + Lung", "Lung only"]
-acct_seg = (hn_set.join(lung_acct, "account_id", "full").join(account_level, "account_id", "left")
-            .fillna(False, subset=["hn_present", "lung_present"]).fillna(0)
-            .withColumn("account_level", F.coalesce("account_level", F.lit("UNKNOWN")))
-            .withColumn("segment", F.when(F.col("hn_present") & F.col("lung_present"), "H&N + Lung")
-                                    .when(F.col("hn_present"), "H&N only").otherwise("Lung only"))
-            .cache())
-
-tbl = acct_seg.groupBy("account_level").pivot("segment", seg_order).count().fillna(0)
-tbl = tbl.withColumn("Total", sum(F.col(f"`{x}`") for x in seg_order))
-tbl.unionByName(tbl.agg(*[F.sum(F.col(f"`{x}`")).alias(x) for x in seg_order + ["Total"]]).withColumn("account_level", F.lit("ALL"))) \
-   .orderBy("account_level").show(truncate=False)
-(acct_seg.groupBy("segment")
-         .agg(F.count("*").alias("accounts"), F.sum("hn_hcps").alias("hn_hcps"),
-              *[F.round(F.sum(x), 1).alias(x) for x in ["DDD", "XPONENT", "MX", "RX", "MCKESSON", "CHARGEMASTER"]])
-         .withColumn("pct_accounts", F.round(100 * F.col("accounts") / F.sum("accounts").over(Window.partitionBy()), 1))
-         .orderBy("segment").show(truncate=False))
+sc = ins.filter("segment = 'H&N + Lung'").select("DDD", "hn_pts_2y", "account_level").toPandas()
+fig, ax = plt.subplots(figsize=(6, 4))
+for lvl, c in [("L2", "#1f77b4"), ("L3", "#ff7f0e")]:
+    d = sc[sc.account_level == lvl]
+    ax.scatter(d.DDD, d.hn_pts_2y, s=14, alpha=0.6, label=lvl, color=c)
+ax.set_xlabel("FASPRO DDD units YTD"); ax.set_ylabel("H&N treating patients (LE.AI, 2y)")
+ax.set_title("H&N + Lung accounts"); ax.legend()
+plt.tight_layout(); plt.show()
 
 
 
 
-%matplotlib inline
-import pandas as pd
-import matplotlib
-import matplotlib.pyplot as plt
-pd.set_option("display.width", 250); pd.set_option("display.max_columns", 30)
-
-SEG_COLORS = {"H&N only": "#4C78A8", "H&N + Lung": "#B279A2", "Lung only": "#54A24B",
-              "Unclassified": "#BAB0AC", "Unmapped account": "#E45756"}
-LUNG_SRC = ["DDD", "XPONENT", "MX", "RX", "MCKESSON", "CHARGEMASTER"]
-
-acct_names = (coh.filter("cohort_account_id IS NOT NULL")
-                 .select(F.col("cohort_account_id").alias("account_id"), F.col("cohort_account_name").alias("account_name"))
-                 .dropDuplicates(["account_id"]))
-ins = (acct_seg.join(acct_names, "account_id", "left")
-       .withColumn("n_lung_sources", sum((F.col(x) > 0).cast("int") for x in LUNG_SRC))
-       .withColumn("weak_lung_chargemaster_only", (F.col("n_lung_sources") == 1) & (F.col("CHARGEMASTER") > 0))
-       .cache())
-
-score = (ins.groupBy("account_level", "segment")
-            .agg(F.count("*").alias("accounts"), F.round(F.sum("DDD"), 1).alias("faspro_ddd_units"),
-                 F.sum("hn_hcps").alias("hn_hcps"), F.round(F.sum("hn_pts_2y"), 0).alias("hn_treating_pts_2y"),
-                 F.round(F.avg("n_lung_sources"), 2).alias("avg_lung_sources"))
-            .toPandas())
-score["pct_accounts"] = (100 * score.accounts / score.accounts.sum()).round(1)
-score["pct_ddd_units"] = (100 * score.faspro_ddd_units / max(score.faspro_ddd_units.sum(), 1e-9)).round(1)
-score["units_per_account"] = (score.faspro_ddd_units / score.accounts).round(2)
-print(score.sort_values(["account_level", "segment"]).to_string(index=False))
-
-
-
-
-
+cols = ["account_id", "account_name", "account_level", "hn_hcps", "hn_pts_2y", "DDD", "XPONENT", "MX",
+        "n_lung_sources", "hn_sources"]
+print("1) H&N only - launch targets (no FASPRO use yet)")
+ins.filter("segment = 'H&N only'").orderBy(F.desc("hn_pts_2y"), F.desc("hn_hcps")).select(*cols).show(20, False)
+print("2) H&N + Lung - largest FASPRO buyers with H&N exposure")
+ins.filter("segment = 'H&N + Lung'").orderBy(F.desc("DDD")).select(*cols).show(20, False)
+print("3) Lung only - largest FASPRO buyers without an H&N signal")
+ins.filter("segment = 'Lung only'").orderBy(F.desc("DDD")).select(*cols).show(20, False)
+print("4) Signal strength - accounts by number of Lung sources")
+(ins.filter("segment != 'H&N only'").groupBy("segment").pivot("n_lung_sources").count().fillna(0).orderBy("segment").show())
+print("Accounts whose only Lung signal is Chargemaster (no product column):",
+      ins.filter("weak_lung_chargemaster_only").count())
 
 
 
