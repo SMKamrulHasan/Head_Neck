@@ -1,0 +1,8 @@
+dataset,source_level,rollup,id_used,how_it_rolls_up
+DDD,L1 (outlet),L1 -> L2/L3,jnj_id (buyer),Outlet found in OPAL col 1 -> most frequent L2_L3 of its HCP rows; if the ID is itself L2/L3 -> keep as is; not in OPAL -> unmapped
+Xponent,L0 (HCP),L0 -> L2/L3,jnj_id (HCP),"HCP J&J ID = OPAL col 0 -> L2_L3 (L2 if present, else L3)"
+MX claims,L0 (HCP),L0 -> L2/L3,rendering_npi,NPI -> dmn_cust J&J ID -> OPAL col 0 -> L2_L3
+RX claims,L0 (HCP),L0 -> L2/L3,prescriber_npi,NPI -> dmn_cust J&J ID -> OPAL col 0 -> L2_L3
+McKesson EMR,L0 (HCP),L0 -> L2/L3,physician_npi,NPI -> dmn_cust J&J ID -> OPAL col 0 -> L2_L3
+Chargemaster,L0 (HCP) or organization,L0 -> L2/L3 (organization: L1/L2/L3 -> L2/L3),NPI,NPI -> dmn_cust J&J ID; HCP -> OPAL col 0 -> L2_L3; organization -> same path as DDD
+LE.AI H&N,L0 (HCP),L0 -> L2/L3,J&J ID (or NPI via dmn_cust),HCP J&J ID -> OPAL col 0 -> L2_L3
