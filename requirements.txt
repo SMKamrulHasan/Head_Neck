@@ -5,6 +5,23 @@ print("saved")
 
 
 
+client = dataiku.api_client()
+project = client.get_default_project()
+
+# use the same storage connection as one of your own "_copy" datasets (those are writable)
+conn = project.get_dataset("RYB_DDD_Sales_copy").get_settings().get_raw()["params"]["connection"]
+print("connection:", conn)
+
+existing = [d["name"] for d in project.list_datasets()]
+for name in ["HN_FASPRO_ACCOUNT_SEGMENTS", "HN_FASPRO_DDD_WEEKLY_SEGMENTS"]:
+    if name not in existing:
+        b = project.new_managed_dataset(name)
+        b.with_store_into(conn)
+        b.create()
+        print("created", name)
+    else:
+        print("already exists", name)
+
 
 
 
