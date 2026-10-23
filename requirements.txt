@@ -1,3 +1,55 @@
+Subject: H&N account segmentation: two versions completed
+
+Hi team,
+
+A quick update: I’ve completed two versions of the account segmentation (L2/L3: H&N only / H&N + Lung / Lung only). The detailed analysis, including segment counts, sales split, figures, segment profiles and data checks, is in each notebook.
+
+Version 1: FASPRO, YTD 2026
+
+Lung: Rybrevant FASPRO activity, 1 Jan – 22 Oct 2026.
+H&N: LE.AI H&N HCPs + Chargemaster HNSCC.
+Notebook: https://jetdataikuenhancements.jnj.com/projects/HN_PROJECT/notebooks/jupyter/SH11_HN_FASPRO_DDD_Segmentation/
+Output tables: HN_FASPRO_ACCOUNT_SEGMENTS, HN_FASPRO_DDD_WEEKLY_SEGMENTS
+
+Version 2: Rybrevant IV + FASPRO, past 52 weeks (updated per team feedback)
+
+Lung: Rybrevant IV + FASPRO activity, 24 Oct 2025 – 22 Oct 2026. This captures HCPs transitioning from IV to FASPRO.
+H&N: same as version 1.
+Notebook: https://jetdataikuenhancements.jnj.com/projects/HN_PROJECT/notebooks/jupyter/SH11_HN_RYB_52W_Segmentation/
+Output tables: HN_RYB_ACCOUNT_SEGMENTS_52W, HN_RYB_DDD_WEEKLY_SEGMENTS_52W
+
+Common to both versions
+
+Sources: DDD, Xponent, MX and RX claims, McKesson EMR, Chargemaster, LE.AI.
+Roll-up: HCPs (L0) and DDD outlets (L1) are rolled up to L2/L3 via dmn_cust (NPI → J&J ID) and OPAL.
+Weekly DDD split: weekly FASPRO DDD units are assigned to segments using a 13-week look-back.
+Rules by dataset: attached, FASPRO_YTD_rollup_rules.md and RYB_52W_rollup_rules.md.
+
+Links
+
+Dataiku project: https://jetdataikuenhancements.jnj.com/projects/HN_PROJECT/
+
+Next step
+
+Map the DDD outlets that aren’t in OPAL to L2/L3. Ravi, I’ll share the list of unmapped IDs.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Load the data: DDD, Xponent, MX and RX claims, McKesson, Chargemaster, LE.AI H&N list, dmn_cust, OPAL.
 Keep only Rybrevant (IV + FASPRO) from the last 52 weeks.
 Link doctors to IDs: doctor NPI → J&J ID, using dmn_cust.
