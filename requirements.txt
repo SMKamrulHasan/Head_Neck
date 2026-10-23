@@ -1,3 +1,12 @@
+d = ddd.filter(F.col("week").between(F.lit(START_DATE), F.lit(END_DATE)))
+s = (d.groupBy("jnj_id").agg(F.sum("amount").alias("units"), F.max(F.col("account_id").isNotNull().cast("int")).alias("mapped"))
+      .groupBy("mapped").agg(F.count("*").alias("ddd_buyer_ids"), F.round(F.sum("units"), 1).alias("faspro_units")))
+s = s.withColumn("pct_ids", F.round(100 * F.col("ddd_buyer_ids") / F.sum("ddd_buyer_ids").over(Window.partitionBy()), 1)) \
+     .withColumn("pct_units", F.round(100 * F.col("faspro_units") / F.sum("faspro_units").over(Window.partitionBy()), 1))
+s.show()
+print("Mapped buyer IDs roll up to", d.filter("account_id IS NOT NULL").select("account_id").distinct().count(), "L2/L3 accounts")
+
+
 (d.filter("account_id IS NULL").groupBy("jnj_id").agg(F.round(F.sum("amount"), 1).alias("faspro_units_ytd"))
   .orderBy(F.desc("faspro_units_ytd")).show(30, False))
 
