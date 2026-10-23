@@ -1,3 +1,57 @@
+h = df["hn_cohort"]
+coh = (h.select(clean(pick(h, "NPI")).alias("npi"), clean(pick(h, "J&J ID")).alias("cohort_jnj_id"),
+                clean(pick(h, "Mapped Account JNJ ID")).alias("cohort_account_id"),
+                F.upper(clean(pick(h, "Mapped Account JNJ Level"))).alias("cohort_account_level"),
+                clean(pick(h, "Mapped Account Name")).alias("cohort_account_name"),
+                clean(pick(h, "Treating Patient Volume - HV (2 years)")).cast("double").alias("hn_pts_2y"),
+                clean(pick(h, "Origami-4 Eligible Patients (2 years)")).cast("double").alias("origami4_pts_2y"))
+         .join(npi_jnj.select("npi", F.col("jnj_id").alias("dmn_jnj_id")), "npi", "left")
+         .withColumn("jnj_id", F.coalesce("cohort_jnj_id", "dmn_jnj_id")))
+coh = to_account(coh, "jnj_id").withColumnRenamed("account_id", "opal_account_id")
+coh = coh.withColumn("cohort_account", F.when(F.col("cohort_account_level").isin("L2", "L3"), F.col("cohort_account_id")))
+for src, acc in [("opal", F.col("opal_account_id")), ("cohort", F.coalesce("cohort_account", "opal_account_id"))]:
+    n = coh.select("npi").distinct().count(); m = coh.filter(acc.isNotNull()).select("npi").distinct().count()
+    print(f"H&N account source = {src:6s}: LE.AI HCPs placed on an account {m:,} of {n:,}")
+
+acc_col = F.col("opal_account_id") if HN_ACCOUNT_SOURCE == "opal" else F.coalesce("cohort_account", "opal_account_id")
+hcp_acc = (coh.withColumn("account_id", acc_col).filter("account_id IS NOT NULL")
+              .groupBy("account_id", "npi").agg(F.max("hn_pts_2y").alias("hn_pts_2y"),
+                                                F.max("origami4_pts_2y").alias("origami4_pts_2y")))
+hn_accounts = (hcp_acc.groupBy("account_id")
+                      .agg(F.countDistinct("npi").alias("hn_hcps"), F.sum("hn_pts_2y").alias("hn_pts_2y"),
+                           F.sum("origami4_pts_2y").alias("origami4_pts_2y")).cache())
+print("H&N accounts:", f"{hn_accounts.count():,}")
+
+
+
+
+
+
+
+
+zero = lambda d: d.withColumn("hn_hcps", F.lit(0)).withColumn("hn_pts_2y", F.lit(0.0)).withColumn("origami4_pts_2y", F.lit(0.0))
+hn_set = hn_accounts.withColumn("hn_src", F.lit("LE.AI"))
+if CM_HNSCC_AS_HN:
+    hn_set = hn_set.unionByName(zero(cm_acc.filter("hnscc > 0 AND account_id IS NOT NULL").select("account_id").distinct())
+                                .withColumn("hn_src", F.lit("CHARGEMASTER_HNSCC")))
+if MCKESSON_HN_DX_AS_HN:
+    hn_set = hn_set.unionByName(zero(mk_hn).withColumn("hn_src", F.lit("MCKESSON_HN_DX")))
+print("H&N universe accounts by source:")
+hn_set.groupBy("hn_src").agg(F.countDistinct("account_id").alias("accounts")).show(truncate=False)
+hn_set = (hn_set.groupBy("account_id").agg(F.max("hn_hcps").alias("hn_hcps"), F.max("hn_pts_2y").alias("hn_pts_2y"),
+                                            F.max("origami4_pts_2y").alias("origami4_pts_2y"),
+                                            F.concat_ws(",", F.sort_array(F.collect_set("hn_src"))).alias("hn_sources"))
+                .withColumn("hn_present", F.lit(True)).cache())
+
+
+
+
+
+
+
+
+
+
 HCP Segmentation:
 
 Key decisions
