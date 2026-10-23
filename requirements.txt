@@ -1,25 +1,9 @@
-import io
-cols = ["account_id", "account_name", "account_level", "segment", "hn_hcps", "hn_pts_2y", "hn_sources",
-        "DDD", "XPONENT", "MX", "RX", "MCKESSON", "CHARGEMASTER", "n_lung_sources", "weak_lung_chargemaster_only"]
-acc = ins.select(*cols).orderBy("segment", F.desc("DDD")).toPandas()
+dkuspark.write_with_schema(dataiku.Dataset("HN_FASPRO_ACCOUNT_SEGMENTS"), ins)        # one row per account + segment
+dkuspark.write_with_schema(dataiku.Dataset("HN_FASPRO_DDD_WEEKLY_SEGMENTS"), weekly)  # account x week sales split
+print("saved")
 
-try:
-    import openpyxl; engine = "openpyxl"
-except ImportError:
-    engine = "xlsxwriter"
 
-buf = io.BytesIO()
-xw = pd.ExcelWriter(buf, engine=engine)
-score.to_excel(xw, sheet_name="Summary", index=False)                      # scorecard by L2/L3 x segment
-for seg in ["H&N only", "H&N + Lung", "Lung only"]:
-    acc[acc.segment == seg].to_excel(xw, sheet_name=seg, index=False)     # one sheet per segment
-acc.to_excel(xw, sheet_name="All accounts", index=False)
-xw.save()
-buf.seek(0)
 
-fname = "HN_FASPRO_account_segments_YTD2026.xlsx"
-dataiku.Folder("HN_EXPORTS").upload_stream(fname, buf)
-print("saved", fname, "| rows:", len(acc))
 
 
 
