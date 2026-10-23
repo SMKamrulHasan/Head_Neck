@@ -1,3 +1,44 @@
+As discussed, here are the rules we currently use to roll each dataset up to L2/L3 accounts and assign the segments (YTD 2026, Rybrevant FASPRO only).
+
+1. Shared lookups (used by all datasets)
+
+NPI → J&J ID (dmn_cust): npi_id → jnj_id. If an NPI has several J&J IDs, we keep the one with the latest efftv_dt. dmn_cust is used as delivered (Active, end_dt 2099-12-31).
+J&J ID → L2/L3 account (OPAL_Affiliation_Levels, ONC): first match wins:
+HCP (OPAL column 0) → its L2_L3 (L2 if present, else L3). OPAL has one row per HCP, so this is 1:1.
+Outlet / L1 (column 1) → the most frequent L2_L3 among HCP rows linked to that outlet.
+ID is itself an L2 (column 2) → itself.
+ID is itself an L3 (column 3) → itself.
+No match → unmapped, excluded from the segmentation.
+Account level: L2 if the account ID appears in OPAL column 2, otherwise L3.
+Each ID maps to at most one account (no splitting or duplication), so nothing is double counted.
+
+
+2. Rules by dataset
+
+Dataset	Filter	ID	Roll-up path	Measure	Date
+DDD	prod_nm contains FASPRO	jnj_id (buyer, usually L1)	Outlet → most frequent L2_L3, or the ID itself if L2/L3	equiv_uns	caln_dt
+Xponent	prod_nm contains FASPRO, TRx > 0	jnj_id (HCP)	HCP → L2_L3	equ_trx	caln_dt
+MX claims	FASPRO NDCs	rendering_npi	NPI → dmn_cust → HCP → L2_L3	Infusions (patient + day + NDC)	service_date
+RX claims	FASPRO NDCs; only patients not in MX	prescriber_npi	NPI → dmn_cust → HCP → L2_L3	Fills	fill_date
+McKesson	Alerts mentioning FASPRO	physician_npi	NPI → dmn_cust → HCP → L2_L3	Alerts	diagnosis_date
+Chargemaster	CY-2026 annual rows (no product column)	NPI (doctor or organization)	NPI → dmn_cust → J&J ID → L2_L3	NSCLC encounters (Lung), HNSCC encounters (H&N)	CY-2026
+LE.AI H&N	All (2-year cohort)	J&J ID (from NPI via dmn_cust if blank or “-”)	HCP → L2_L3	H&N HCPs, H&N treating patients
+
+3. Segment rules
+
+Account level (YTD):
+Lung present = any FASPRO activity placed on the account, from any of the six sources.
+H&N present = LE.AI HCPs, Chargemaster HNSCC encounters, or an H&N diagnosis in McKesson.
+Accounts are then labelled H&N only, H&N + Lung or Lung only.
+Weekly DDD:
+Lung present = Lung signal from the non-DDD sources (YTD), or FASPRO purchased in DDD in the 13 weeks before that week.
+H&N present = same as above.
+DDD buyers we can’t map are reported as “Unmapped account”.
+
+
+
+
+
 The issue is that if you removed ONC filter and try to roll up it wont remain a 1 to 1 connection, What happens is that if you remove the ONC affiliation filter then 1 L1 account has multiple L2/L3 and you would be double counting accounts at that instance.
 
 
