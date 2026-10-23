@@ -1,3 +1,9 @@
+(d.filter("account_id IS NULL").groupBy("jnj_id").agg(F.round(F.sum("amount"), 1).alias("faspro_units_ytd"))
+  .orderBy(F.desc("faspro_units_ytd")).show(30, False))
+
+
+
+
 Yes, checked. For FASPRO DDD YTD, X of Y DDD buyer IDs (~42% of FASPRO units, ~4,760 of ~11,230) can’t be rolled up to L2/L3, because they aren’t in OPAL_Affiliation_Levels. That table only holds outlets linked to ONC-affiliated HCPs. Those accounts therefore get no DDD lung signal, and the ones with LE.AI H&N HCPs fall into “H&N only” instead of “H&N + Lung”. This is the main reason the split is skewed.
 Can we pull the outlet (L1) → L2/L3 mapping for these buyer IDs from cdp.d_provider_hierarchy_pd, without the ONC filter? I can share the list of unmapped IDs, sorted by units.
 
