@@ -1,97 +1,26 @@
-# ---------- 8b. Segment profiles ----------
-seg_of = ins.select("account_id", "segment")
-win = F.col("day").between(F.lit(START_DATE), F.lit(END_DATE))
-dmn_info = (df["dmn"].select(clean(F.col("jnj_id")).alias("jnj_id"), F.col("prim_spclt_nm").alias("specialty"),
-                             F.col("cust_typ_nm").alias("cust_type"))
-                     .filter("jnj_id IS NOT NULL").dropDuplicates(["jnj_id"]).cache())
+import io
+cols = ["account_id", "account_name", "account_level", "segment", "hn_hcps", "hn_pts_2y", "hn_sources",
+        "DDD", "XPONENT", "MX", "RX", "MCKESSON", "CHARGEMASTER", "n_lung_sources", "weak_lung_chargemaster_only"]
+acc = ins.select(*cols).orderBy("segment", F.desc("DDD")).toPandas()
 
-# doctors per account: H&N (LE.AI) and FASPRO writers (MX, RX, Xponent, McKesson; YTD)
-hn_hcp = (coh.withColumn("account_id", acc_col).filter("account_id IS NOT NULL AND jnj_id IS NOT NULL")
-             .select("account_id", "jnj_id", "npi").distinct())
-writers = None
-for d in (mx_inf, rx, xp, mk):
-    t = to_account(d.filter(win).select("jnj_id"), "jnj_id").filter("account_id IS NOT NULL AND jnj_id IS NOT NULL")
-    writers = t if writers is None else writers.unionByName(t)
-writers = writers.distinct()
-hcps = (hn_hcp.select("account_id", "jnj_id").withColumn("role", F.lit("H&N HCP"))
-        .unionByName(writers.withColumn("role", F.lit("FASPRO writer")))
-        .join(seg_of, "account_id").join(dmn_info.select("jnj_id", "specialty"), "jnj_id", "left").cache())
+try:
+    import openpyxl; engine = "openpyxl"
+except ImportError:
+    engine = "xlsxwriter"
 
-# 1) specialty by segment and role (top 8)
-sp = (hcps.groupBy("segment", "role", F.coalesce("specialty", F.lit("UNKNOWN")).alias("specialty"))
-          .agg(F.countDistinct("jnj_id").alias("hcps")).toPandas())
-print("1) Specialty mix")
-for (sg, rl), g in sp.groupby(["segment", "role"]):
-    g = g.sort_values("hcps", ascending=False)
-    g["pct"] = (100 * g.hcps / g.hcps.sum()).round(1)
-    print(f"\n{sg} | {rl} | {int(g.hcps.sum()):,} HCPs")
-    print(g.head(8)[["specialty", "hcps", "pct"]].to_string(index=False))
+buf = io.BytesIO()
+xw = pd.ExcelWriter(buf, engine=engine)
+score.to_excel(xw, sheet_name="Summary", index=False)                      # scorecard by L2/L3 x segment
+for seg in ["H&N only", "H&N + Lung", "Lung only"]:
+    acc[acc.segment == seg].to_excel(xw, sheet_name=seg, index=False)     # one sheet per segment
+acc.to_excel(xw, sheet_name="All accounts", index=False)
+xw.save()
+buf.seek(0)
 
-# 2) doctors per account + dual doctors (H&N list AND FASPRO writer at the same account)
-dual = (hn_hcp.select("account_id", "jnj_id").join(writers, ["account_id", "jnj_id"])
-              .groupBy("account_id").agg(F.countDistinct("jnj_id").alias("dual_hcps")))
-nw = writers.groupBy("account_id").agg(F.countDistinct("jnj_id").alias("faspro_writers"))
-per = ins.select("account_id", "segment", "hn_hcps").join(nw, "account_id", "left").join(dual, "account_id", "left").fillna(0)
-print("\n2) Doctors per account")
-(per.groupBy("segment").agg(F.count("*").alias("accounts"),
-                            F.round(F.avg("hn_hcps"), 1).alias("avg_hn_hcps"),
-                            F.round(F.avg("faspro_writers"), 1).alias("avg_faspro_writers"),
-                            F.sum("dual_hcps").alias("dual_hcps_total"),
-                            F.sum((F.col("dual_hcps") > 0).cast("int")).alias("accounts_with_dual_hcp"))
-    .orderBy("segment").show(truncate=False))
+fname = "HN_FASPRO_account_segments_YTD2026.xlsx"
+dataiku.Folder("HN_EXPORTS").upload_stream(fname, buf)
+print("saved", fname, "| rows:", len(acc))
 
-# 3) account type
-print("3) Account type (dmn_cust)")
-(ins.select("account_id", "segment").join(dmn_info.select(F.col("jnj_id").alias("account_id"), "cust_type"), "account_id", "left")
-    .groupBy(F.coalesce("cust_type", F.lit("NOT IN DMN_CUST")).alias("account_type"))
-    .pivot("segment", seg_order).count().fillna(0).orderBy(F.desc("`H&N + Lung`")).show(20, False))
-
-# 4) practice setting (LE.AI): most common setting of the account's H&N doctors
-ps = h.select(clean(pick(h, "NPI")).alias("npi"), clean(pick(h, "Practice Settings")).alias("practice_setting")).dropDuplicates(["npi"])
-acc_ps = (hn_hcp.join(ps, "npi").filter("practice_setting IS NOT NULL").groupBy("account_id", "practice_setting").count()
-                .withColumn("rk", F.row_number().over(Window.partitionBy("account_id").orderBy(F.desc("count"), "practice_setting")))
-                .filter("rk = 1").select("account_id", "practice_setting"))
-print("4) Practice setting (LE.AI, H&N accounts)")
-(ins.filter("segment != 'Lung only'").select("account_id", "segment").join(acc_ps, "account_id", "left")
-    .groupBy(F.coalesce("practice_setting", F.lit("UNKNOWN")).alias("practice_setting"))
-    .pivot("segment", ["H&N only", "H&N + Lung"]).count().fillna(0).orderBy(F.desc("`H&N only`")).show(20, False))
-
-# 5) where FASPRO is given (MX claims, YTD)
-mods = F.coalesce(F.col("modifiers"), F.lit(""))
-mxs = (df["mx"].filter(is_faspro_ndc(F.col("ndc")))
-        .select(F.concat_ws("|", "dv1", "dv2").alias("patient_id"), F.to_date("service_date").alias("day"), "ndc",
-                clean(F.col("rendering_npi")).alias("npi"), F.upper("data_source").alias("data_source"),
-                clean(F.col("place_of_service")).alias("pos"),
-                (mods.contains("|TB|") | mods.contains("|UD|")).cast("int").alias("is_340b"))
-        .filter(win).join(npi_jnj, "npi", "left"))
-mxs = to_account(mxs, "jnj_id").join(seg_of, "account_id")
-print("5) FASPRO infusions by care setting (MX)")
-(mxs.groupBy("segment")
-    .agg(F.countDistinct(F.concat_ws("|", "patient_id", "day", "ndc")).alias("infusions"),
-         F.countDistinct("patient_id").alias("faspro_patients"),
-         F.round(100 * F.avg((F.col("data_source") == "INSTITUTIONAL").cast("int")), 1).alias("pct_facility_lines"),
-         F.round(100 * F.avg((F.col("pos") == "11").cast("int")), 1).alias("pct_office_pos11"),
-         F.round(100 * F.avg((F.col("pos") == "22").cast("int")), 1).alias("pct_hosp_outpt_pos22"),
-         F.round(100 * F.avg("is_340b"), 1).alias("pct_340b_lines"))
-    .orderBy("segment").show(truncate=False))
-
-# 6) adoption (DDD): first purchase, weeks active, last 13 weeks vs previous 13
-last_wk = ddd.agg(F.max("week")).collect()[0][0]
-d13 = F.date_sub(F.lit(last_wk), 13 * 7); d26 = F.date_sub(F.lit(last_wk), 26 * 7)
-ad = (ddd.filter("account_id IS NOT NULL").groupBy("account_id")
-         .agg(F.min("week").alias("first_week"), F.countDistinct("week").alias("weeks_active"),
-              F.sum(F.when(F.col("week") > d13, F.col("amount")).otherwise(0)).alias("last13"),
-              F.sum(F.when((F.col("week") > d26) & (F.col("week") <= d13), F.col("amount")).otherwise(0)).alias("prev13"))
-         .join(seg_of, "account_id"))
-print("6) Adoption (DDD buyers only), latest week:", last_wk)
-(ad.groupBy("segment")
-   .agg(F.count("*").alias("buying_accounts"), F.min("first_week").alias("earliest_first_buy"),
-        F.round(F.avg("weeks_active"), 1).alias("avg_weeks_active"),
-        F.sum((F.col("first_week") > d13).cast("int")).alias("new_last_13w"),
-        F.sum((F.col("last13") > F.col("prev13")).cast("int")).alias("growing"),
-        F.sum((F.col("last13") < F.col("prev13")).cast("int")).alias("declining"),
-        F.sum((F.col("last13") == 0).cast("int")).alias("stopped_last_13w"))
-   .orderBy("segment").show(truncate=False))
 
 
 
