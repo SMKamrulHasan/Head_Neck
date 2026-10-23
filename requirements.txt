@@ -1,3 +1,21 @@
+Load the data: DDD, Xponent, MX and RX claims, McKesson, Chargemaster, LE.AI H&N list, dmn_cust, OPAL.
+Keep only Rybrevant (IV + FASPRO) from the last 52 weeks.
+Link doctors to IDs: doctor NPI → J&J ID, using dmn_cust.
+Link everything to hospitals: doctors (L0) and DDD outlets (L1) roll up to their L2/L3 account, using OPAL.
+Build the H&N list: accounts with LE.AI H&N doctors (plus Chargemaster HNSCC).
+Build the Lung list: accounts with any Rybrevant activity in any source.
+Label each account:
+on both lists → H&N + Lung
+only on the H&N list → H&N only
+only on the Lung list → Lung only
+Weekly sales: each week’s FASPRO DDD sales go to the account’s label. An account counts as Lung if it bought Rybrevant in the previous 13 weeks.
+Insights: counts, sales, specialties and the IV → FASPRO trend per segment, then save to the Flow.
+
+
+
+
+
+
 As discussed, here are the rules we currently use to roll each dataset up to L2/L3 accounts and assign the segments (YTD 2026, Rybrevant FASPRO only).
 
 1. Shared lookups (used by all datasets)
