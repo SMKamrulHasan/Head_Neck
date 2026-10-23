@@ -1,3 +1,9 @@
+The issue is that if you removed ONC filter and try to roll up it wont remain a 1 to 1 connection, What happens is that if you remove the ONC affiliation filter then 1 L1 account has multiple L2/L3 and you would be double counting accounts at that instance.
+
+
+
+
+
 d = ddd.filter(F.col("week").between(F.lit(START_DATE), F.lit(END_DATE)))
 s = (d.groupBy("jnj_id").agg(F.sum("amount").alias("units"), F.max(F.col("account_id").isNotNull().cast("int")).alias("mapped"))
       .groupBy("mapped").agg(F.count("*").alias("ddd_buyer_ids"), F.round(F.sum("units"), 1).alias("faspro_units")))
