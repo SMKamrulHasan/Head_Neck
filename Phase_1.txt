@@ -1,4 +1,82 @@
-	• Business objective remains the same: determine how Rybrevant/Rybrevant Faspro utilization and sales should be split between Lung and Head & Neck, since the product can span both indications. Jake Guinto clarified that Lazcluze should not be included in this attribution. [Weekly H&N...ng Session | Meeting]
+• So, the updated code has the following changes
+	• Lung universe expanded: The updated notebook now incorporates additional products, including Tagrisso, which was considered important because it represents a large part of the lung market. The objective is to construct a broader lung universe rather than relying only on Rybrevant-related products.
+	• Data sources: The lung universe uses multiple sources including DDD, RX/MX claims, and Careset. Careset Medicare claims were added even though that source does not provide product-level brand granularity.
+	• Time window updated: The analysis endpoint was extended to approximately Nov. 1, maintaining a buffer around the FASPRO approval period.
+	• OPAL affiliation logic improved: An additional OPAL mapping was introduced to support appropriate L1 → L2/L3 account rollups, addressing account loss encountered with the previous affiliation logic.
+
+
+1. Received a new H&N/Lung Careset split
+	○ This arrived only recently as a one-time flat-file delivery.
+	○ Unlike the earlier Careset Lung data, this dataset provides account-level percentages for Lung, H&N, and shared activity.
+2. Started connecting recent 867 purchases to the segmentation
+	• Ravi is now taking recent FASPRO 867 purchase data, rolling accounts from L1 to L2/L3, and passing them through the H&N/Lung segmentation.
+
+How 867 fits into the existing segmentation
+Think of the work as two layers:
+
+Layer 1: Existing segmentation
+You and Ravi had already built the account universe using historical data:
+H&N universe + Lung universe → account segmentation
+which produces categories such as:
+	• H&N only
+	• Lung only
+	• H&N + Lung
+That historical segmentation tells you what type of clinical/account activity exists at each account.
+
+Layer 2: Apply that segmentation to new FASPRO purchases
+Ravi then added the recent 867 data like this:
+Recent 867 FASPRO purchase
+→ identify purchasing account
+→ roll L1 account up to L2/L3 using OPAL
+→ match it against the existing H&N/Lung segmentation
+→ assign the FASPRO purchase to H&N only, Lung only, or H&N + Lung.
+The reason for the L1 → L2/L3 step is important: Ravi said the 867 data arrives at L1, while the segmentation needs the higher-level account affiliation to make the connection.
+
+Why they needed another step
+When Ravi tested recent 867 purchases, approximately 51% landed in the H&N + Lung segment. So the existing segmentation alone couldn't tell whether those FASPRO purchases were really associated with H&N or Lung.
+That's where the new Careset split comes in:
+867 purchase
+→ existing segmentation
+→ if H&N only → keep H&N
+→ if Lung only → keep Lung
+→ if H&N + Lung or No Value → look at Careset's account-level H&N/Lung percentages
+→ use an agreed threshold to further classify the account where confidence is sufficient.
+
+
+
+• The existing H&N/Lung segmentation is already complete. The latest 867 data has been joined to that segmentation using L2/L3 account IDs.
+• Records classified clearly as H&N only or Lung only can retain their current classification.
+• Records currently classified as H&N + Lung or unclassified need additional logic using the Careset L2/L3 split.
+• For each distinct Careset account, calculate from this table Careset L2/L3 split: 
+	• Lung share
+	• H&N share
+	• incorporating the existing Lung, H&N, and Both percentages.
+• Then calculate the average Lung share and average H&N share across accounts. These averages will inform the classification threshold.
+• The team explicitly did not want a simple 50/50 rule. Ravikiran Sriram noted that the underlying market is expected to be heavily Lung-weighted, roughly 80–85% Lung versus 10–15% H&N, so the calculated averages should provide a more realistic starting point for the threshold.
+• Once the threshold is agreed, apply the Careset logic to the ambiguous 867 records and create the final segment.
+• The final 867 output should preserve every purchase record and include a reason/traceability column explaining why each record received its classification. Records without an L2/L3 mapping should remain in the output with that explicitly documented rather than being dropped.
+• Field feedback has not started yet, so that step remains on hold and can be incorporated later.
+Immediate next steps
+	1. Calculate H&N and Lung shares for each distinct Careset L2/L3 account.
+	2. Calculate the overall average for both shares.
+	3. Share those averages with Ravikiran Sriram so the threshold can be agreed.
+	4. Use the threshold to resolve H&N + Lung / ambiguous 867 records.
+	5. Merge/apply the result to the 867 dataset and add final segment + classification reason for traceability.
+Bring the proposed logic and threshold to the next stakeholder discussion, while keeping the threshold open to adjustment based on feedback.
+
+
+
+
+
+
+
+
+
+
+
+
+
+• Business objective remains the same: determine how Rybrevant/Rybrevant Faspro utilization and sales should be split between Lung and Head & Neck, since the product can span both indications. Jake Guinto clarified that Lazcluze should not be included in this attribution. [Weekly H&N...ng Session | Meeting]
 	• The proposed framework is now more of a triangulation approach, rather than simply combining every source into one large master dataset. Ryan Larsen described using individual datasets to independently estimate the Lung vs. H&N split, then weighting/triangulating those signals and ultimately applying the resulting split to DDD/867 data. [Weekly H&N...ng Session | Meeting]
 	• CareSet is intended to establish the overall H&N opportunity/ceiling. Other signals discussed include Komodo claims, FinThrive ChargeMaster, McKesson EMR, and field insights. [Weekly H&N...ng Session | Meeting]
 	• FinThrive/ChargeMaster is different from claims: it represents facility charges recorded around drug administration before claim submission. Its national sample is smaller than claims, but Ryan Larsen said it provides more complete capture for the accounts represented and currently gives a cleaner H&N/Lung bifurcation. [Weekly H&N...ng Session | Meeting]
@@ -155,7 +233,11 @@ Critical Attributes for H&N Project
 Prescriber NPI
 Represents the physician.
 Need:
-Prescriber NPI     ↓DMN_CUST     ↓J&J ID
+Prescriber NPI
+     ↓
+DMN_CUST
+     ↓
+J&J ID
 to connect physician activity across systems. [H&N Working Session | Meeting]
 Open Questions
 Need from Siddhant:
@@ -170,7 +252,11 @@ Non-retail product sales.
 Captures sales occurring at outpatient clinics, infusion centers, hospitals, and account-level facilities. Ravi indicated most Rybrevant volume is expected to appear here. [H&N Working Session | Meeting]
 
 Hierarchy Level
-DDD=L1 Account Level=Hospital / Outlet / Account
+DDD
+=
+L1 Account Level
+=
+Hospital / Outlet / Account
 Not physician level. [H&N Working Session | Meeting]
 
 Key Columns
@@ -188,8 +274,12 @@ Key Products Discussed
 	[H&N Working Session | Meeting]
 	Equivalized Units (EQUI_UNS)
 	Ravi highlighted that:
-	UNS=raw units
-	EQUI_UNS=normalized units
+	UNS
+=
+raw units
+	EQUI_UNS
+=
+normalized units
 	Example:
 		○ Different dosage strengths
 		○ Different formulations
@@ -197,7 +287,11 @@ Key Products Discussed
 		
 		Why Important for H&N
 		The business objective is:
-		Given account purchases at L1,predict:    Lung utilization    vs    Head & Neck utilization
+		Given account purchases at L1,
+predict:
+    Lung utilization
+    vs
+    Head & Neck utilization
 		This is one of the primary modeling datasets. [H&N Working Session | Meeting]
 					
 3. Exponent Sales Dataset
@@ -206,7 +300,11 @@ Retail prescription sales.
 Captures activity closer to physician prescribing behavior. [H&N Working Session | Meeting]
 
 Hierarchy Level
-Exponent=L0=HCP Level
+Exponent
+=
+L0
+=
+HCP Level
 Physician level information. [H&N Working Session | Meeting]
 
 Key Characteristics
@@ -230,7 +328,13 @@ Main Drugs Expected	Rybrevant	More Lazcluze activity
 Purpose
 Most important integration table.
 Allows mapping between:
-Physician↓Outlet↓Account↓Health System
+Physician
+↓
+Outlet
+↓
+Account
+↓
+Health System
 [H&N Working Session | Meeting]
 
 Hierarchy Explained
@@ -243,7 +347,13 @@ L4-L5	Enterprise Health System
 [H&N Working Session | Meeting]
 
 Example
-Doctor Smith    ↓UPenn Hospital Location    ↓UPenn Philadelphia    ↓UPenn Health System
+Doctor Smith
+    ↓
+UPenn Hospital Location
+    ↓
+UPenn Philadelphia
+    ↓
+UPenn Health System
 Would roll through OPAL hierarchy. [H&N Working Session | Meeting]
 
 Key Columns
@@ -268,7 +378,9 @@ Used because:
 	
 	Preferred Parent Mapping Rule
 	Priority:
-	Parent Level 2      ↓Parent Level 3
+	Parent Level 2
+      ↓
+Parent Level 3
 	Use L2 when available, otherwise L3. [H&N Working Session | Meeting]
 						
 5. DMN_CUST
@@ -282,13 +394,25 @@ Mapping
 NPI → JJ_ID
 [H&N Working Session | Meeting]
 Without DMN_CUST:
-Claims Data       ↓Prescriber NPI
+Claims Data
+       ↓
+Prescriber NPI
 cannot easily connect to:
 	• OPAL
 	• Sales
 	• Account hierarchy
 	With DMN_CUST:
-	Claims  ↓NPI  ↓DMN_CUST  ↓JJ_ID  ↓OPAL  ↓Account
+	Claims
+  ↓
+NPI
+  ↓
+DMN_CUST
+  ↓
+JJ_ID
+  ↓
+OPAL
+  ↓
+Account
 	[H&N Working Session | Meeting]
 	
 	Recommended End-to-End Data Pipeline
