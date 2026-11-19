@@ -1,3 +1,29 @@
+amb867 = (s867.withColumn("account_id", clean(pick(s867, "L2_L3")))
+              .withColumn("seg", clean(pick(s867, "segment")))
+              .withColumn("qty", pick(s867, "qty_sold_pu").cast("double"))
+              .filter(F.col("account_id").isNotNull() &
+                      ~F.coalesce(F.col("seg"), F.lit("")).isin("H&N only", "Lung only"))
+              .join(cs.select("account_id", "hn_share", "lung_share", "cs_total_pts"), "account_id", "left")
+              .cache())
+print("Ambiguous 867 records:", amb867.count(), "| units:", amb867.agg(F.sum("qty")).collect()[0][0])
+
+import pandas as pd
+rows = []
+for min_pts in (0, 20):
+    for hn_t, lung_t in [(0.50, 0.85), (0.30, 0.85), (0.25, 0.80), (0.20, 0.85)]:
+        ok = F.col("hn_share").isNotNull() & (F.coalesce(F.col("cs_total_pts"), F.lit(0)) >= min_pts)
+        cls = (F.when(~ok, "Unclassified").when(F.col("hn_share") >= hn_t, "Head & Neck")
+                .when(F.col("lung_share") >= lung_t, "Lung").otherwise("Unclassified"))
+        r = {x["c"]: (x["n"], x["q"]) for x in amb867.withColumn("c", cls).groupBy("c")
+                .agg(F.count("*").alias("n"), F.sum("qty").alias("q")).collect()}
+        rows.append({"min_patients": min_pts, "hn_threshold": hn_t, "lung_threshold": lung_t,
+                     **{f"{k}_records": r.get(k, (0, 0))[0] for k in ["Head & Neck", "Lung", "Unclassified"]},
+                     **{f"{k}_units": r.get(k, (0, 0))[1] for k in ["Head & Neck", "Lung", "Unclassified"]}})
+print(pd.DataFrame(rows).to_string(index=False))
+
+
+
+
 import re
 import dataiku
 import dataiku.spark as dkuspark
