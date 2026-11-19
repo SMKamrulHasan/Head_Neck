@@ -1,3 +1,163 @@
+import re
+import dataiku
+import dataiku.spark as dkuspark
+from pyspark.sql import SparkSession, SQLContext, Window
+from pyspark.sql import functions as F
+
+spark = SparkSession.builder.getOrCreate()
+sqlContext = SQLContext(spark.sparkContext)
+
+CARESET_SPLIT = "Careset_L2_L3_Split"
+DS_867 = "867_Recent_Week_Purchase_L2L3_Segmentation"
+MISSING = ["", "-", "--", "NA", "N/A", "NULL", "NONE", "NAN"]
+
+def load(n): return dkuspark.get_dataframe(sqlContext, dataiku.Dataset(n))
+def clean(c):
+    s = F.trim(c.cast("string")); return F.when(~F.upper(s).isin(MISSING), s)
+def pick(d, name):
+    key = lambda x: re.sub(r"[^0-9a-z]", "", x.lower())
+    found = {key(x): x for x in d.columns}
+    if key(name) not in found:
+        raise KeyError(f"column '{name}' not found. Available: {d.columns}")
+    return F.col(f"`{found[key(name)]}`")
+
+raw = load(CARESET_SPLIT)
+num = lambda n: clean(pick(raw, n)).cast("double")
+cs = raw.select(clean(pick(raw, "PARENT_ID")).alias("account_id"),
+                clean(pick(raw, "opal_lvl")).alias("cs_level"),
+                clean(pick(raw, "Priority Account flag")).alias("cs_priority_flag"),
+                clean(pick(raw, "total_patients_BIMS_flag")).alias("cs_bims_flag"),
+                num("total_lung+HNSCC").alias("cs_total_pts"),
+                num("total_lung_patients").alias("cs_lung_pts"),
+                num("total_hnscc_patients").alias("cs_hnscc_pts"),
+                num("total_both_patients").alias("cs_both_pts"),
+                num("%Lung Indication").alias("pct_lung"),
+                num("%HNSCC Indication").alias("pct_hn"),
+                num("%Both Indication").alias("pct_both")).filter("account_id IS NOT NULL")
+
+# one row per account (exact duplicates dropped; otherwise keep the row with most patients)
+n0 = cs.count(); cs = cs.dropDuplicates()
+cs = (cs.withColumn("rk", F.row_number().over(Window.partitionBy("account_id")
+                                              .orderBy(F.desc_nulls_last("cs_total_pts"), "cs_level")))
+        .filter("rk = 1").drop("rk"))
+print(f"CareSet rows {n0:,} -> distinct accounts {cs.count():,}")
+
+# shares (team formula): Both% is split in proportion to HNSCC% vs Lung%
+den = F.col("pct_hn") + F.col("pct_lung")
+cs = (cs.withColumn("hn_share", F.when(den > 0, F.col("pct_hn") + F.col("pct_both") * F.col("pct_hn") / den))
+        .withColumn("lung_share", F.when(den > 0, F.col("pct_lung") + F.col("pct_both") * F.col("pct_lung") / den))
+        .cache())
+
+print("Checks:")
+cs.agg(F.sum(F.col("hn_share").isNull().cast("int")).alias("no_share_(only_Both_or_missing)"),
+       F.sum((F.abs(F.col("pct_lung") + F.col("pct_hn") + F.col("pct_both") - 1) > 0.01).cast("int")).alias("pcts_not_summing_to_1"),
+       F.sum((F.col("hn_share") == 0).cast("int")).alias("accounts_hn_share_0"),
+       F.sum(((F.col("hn_share") == 0) & (F.col("cs_total_pts") <= 20)).cast("int")).alias("hn_0_and_total_<=20_(suppression?)")
+       ).show(truncate=False)
+
+def averages(d, label):
+    print(label)
+    d.filter("hn_share IS NOT NULL").agg(
+        F.count("*").alias("accounts"),
+        F.round(F.avg("hn_share"), 4).alias("avg_hn_share"),
+        F.round(F.avg("lung_share"), 4).alias("avg_lung_share"),
+        F.round(F.sum(F.col("hn_share") * F.col("cs_total_pts")) / F.sum("cs_total_pts"), 4).alias("wtd_hn_share"),
+        F.round(F.sum(F.col("lung_share") * F.col("cs_total_pts")) / F.sum("cs_total_pts"), 4).alias("wtd_lung_share"),
+        F.round(F.expr("percentile_approx(hn_share, 0.5)"), 4).alias("median_hn_share")).show(truncate=False)
+
+averages(cs, "A) All CareSet accounts")
+for lvl in [r[0] for r in cs.select("cs_level").distinct().collect()]:
+    averages(cs.filter(F.col("cs_level") == lvl), f"   level {lvl}")
+
+# the accounts that actually matter: ambiguous 867 purchases
+s867 = load(DS_867)
+amb = (s867.select(clean(pick(s867, "L2_L3")).alias("account_id"), clean(pick(s867, "segment")).alias("segment"))
+           .filter(~F.coalesce(F.col("segment"), F.lit("")).isin("H&N only", "Lung only"))
+           .select("account_id").distinct())
+print("Ambiguous 867 accounts:", amb.count(), "| with a CareSet split:", amb.join(cs, "account_id").count())
+averages(cs.join(amb, "account_id"), "B) Ambiguous 867 accounts only")
+
+print("Distribution of H&N share (all accounts):")
+(cs.filter("hn_share IS NOT NULL")
+   .withColumn("hn_share_band", F.when(F.col("hn_share") == 0, "0")
+               .when(F.col("hn_share") < 0.1, "0-10%").when(F.col("hn_share") < 0.2, "10-20%")
+               .when(F.col("hn_share") < 0.3, "20-30%").when(F.col("hn_share") < 0.5, "30-50%").otherwise(">=50%"))
+   .groupBy("hn_share_band").count().orderBy("hn_share_band").show())
+
+
+
+
+
+
+
+
+
+
+
+HN_SHARE_THRESHOLD = None     # e.g. 0.50 -> classify as H&N
+LUNG_SHARE_THRESHOLD = None   # e.g. 0.85 -> classify as Lung
+OUT = "867_Recent_Week_Purchase_Final_Segment"
+SAVE = False
+
+assert HN_SHARE_THRESHOLD is not None and LUNG_SHARE_THRESHOLD is not None, "Set the agreed thresholds first."
+assert HN_SHARE_THRESHOLD + LUNG_SHARE_THRESHOLD > 1, "Thresholds overlap: a purchase could qualify for both."
+
+d = (s867.withColumn("_L2_L3", clean(pick(s867, "L2_L3")))
+         .withColumn("_segment", clean(pick(s867, "segment"))))
+n_in = d.count()
+d = d.join(cs.select(F.col("account_id").alias("_L2_L3"), "hn_share", "lung_share", "cs_total_pts", "cs_bims_flag"),
+           "_L2_L3", "left")
+assert d.count() == n_in, "Join changed the number of 867 records"
+
+fmt = lambda c: F.format_number(F.col(c), 2)
+seg, hn, lung = F.col("_segment"), F.col("hn_share"), F.col("lung_share")
+seg_txt = F.coalesce(seg, F.lit("no segment"))
+d = (d.withColumn("final_segment",
+        F.when(F.col("_L2_L3").isNull(), "Unclassified")
+         .when(seg == "H&N only", "Head & Neck")
+         .when(seg == "Lung only", "Lung")
+         .when(hn.isNull(), "Unclassified")
+         .when(hn >= HN_SHARE_THRESHOLD, "Head & Neck")
+         .when(lung >= LUNG_SHARE_THRESHOLD, "Lung")
+         .otherwise("Unclassified"))
+      .withColumn("classification_source",
+        F.when(F.col("_L2_L3").isNull(), "NONE")
+         .when(seg.isin("H&N only", "Lung only"), "SEGMENTATION")
+         .when(hn.isNull(), "NONE").otherwise("CARESET"))
+      .withColumn("classification_reason",
+        F.when(F.col("_L2_L3").isNull(), F.lit("No L2/L3 mapping for the purchasing account"))
+         .when(seg.isin("H&N only", "Lung only"), F.concat(F.lit("Historical segmentation: "), seg))
+         .when(hn.isNull(), F.concat(F.lit("Segmentation '"), seg_txt, F.lit("'; no CareSet split for the account")))
+         .when(hn >= HN_SHARE_THRESHOLD, F.concat(F.lit("Segmentation '"), seg_txt, F.lit("'; CareSet H&N share "),
+                                                  fmt("hn_share"), F.lit(f" >= {HN_SHARE_THRESHOLD}")))
+         .when(lung >= LUNG_SHARE_THRESHOLD, F.concat(F.lit("Segmentation '"), seg_txt, F.lit("'; CareSet Lung share "),
+                                                      fmt("lung_share"), F.lit(f" >= {LUNG_SHARE_THRESHOLD}")))
+         .otherwise(F.concat(F.lit("Segmentation '"), seg_txt, F.lit("'; CareSet shares between thresholds (H&N "),
+                             fmt("hn_share"), F.lit(", Lung "), fmt("lung_share"), F.lit(")"))))
+      .drop("_L2_L3", "_segment").cache())
+
+qty = pick(d, "qty_sold_pu")
+print(f"867 records in {n_in:,} | out {d.count():,}")
+d.groupBy("final_segment").agg(F.count("*").alias("records"), F.round(F.sum(qty), 1).alias("qty")) \
+ .withColumn("pct_qty", F.round(100 * F.col("qty") / F.sum("qty").over(Window.partitionBy()), 1)).show()
+d.groupBy("classification_source", "final_segment").count().orderBy("classification_source").show(truncate=False)
+
+if SAVE:
+    client = dataiku.api_client(); project = client.get_default_project()
+    if OUT not in [x["name"] for x in project.list_datasets()]:
+        conn = project.get_dataset(DS_867).get_settings().get_raw()["params"]["connection"]
+        b = project.new_managed_dataset(OUT); b.with_store_into(conn); b.create()
+    dkuspark.write_with_schema(dataiku.Dataset(OUT), d)
+    print("saved", OUT)
+
+
+
+
+
+
+
+
+
 • So, the updated code has the following changes
 	• Lung universe expanded: The updated notebook now incorporates additional products, including Tagrisso, which was considered important because it represents a large part of the lung market. The objective is to construct a broader lung universe rather than relying only on Rybrevant-related products.
 	• Data sources: The lung universe uses multiple sources including DDD, RX/MX claims, and Careset. Careset Medicare claims were added even though that source does not provide product-level brand granularity.
