@@ -1,14 +1,20 @@
-Traceability requirement
-The final 867 dataset should retain every purchase record and make it clear why each record received its final H&N/Lung classification.
-Specifically:
-	• Add a Final Segment column, such as Head & Neck, Lung, or Unclassified.
-	• Add a Reason / Traceability column explaining which logic produced that classification.
-	• If the original segmentation already clearly says H&N only or Lung only, retain that result and document that it came directly from the existing segmentation.
-	• If the record is H&N + Lung, use the Careset-derived threshold and record that reasoning.
-	• If an 867 purchase has no L2/L3 mapping, do not remove it. Keep the purchase and record something like “No L2/L3 present; unable to classify.”
-	• This is important because Ravikiran Sriram explicitly acknowledged there may be false positives, so the team needs to be able to go back and understand exactly why a particular purchase was assigned to H&N or Lung.
-	A practical final structure would therefore look conceptually like:
-867 Purchase → L2/L3 → Existing Segment → Careset Share/Threshold (when needed) → Final Segment → Classification Reason
+OUT_BIMS = "Careset_BIMS_Imputed_Accounts"
+
+bims = cs.filter(F.col("cs_bims_flag").cast("double") == 1)
+print(f"Accounts with imputed total (BIMS flag = 1): {bims.count():,}")
+bims.groupBy((F.col("hn_share") == 0).alias("hn_share_0")).count().show()
+
+client = dataiku.api_client()
+project = client.get_default_project()
+if OUT_BIMS not in [x["name"] for x in project.list_datasets()]:
+    conn = project.get_dataset(CARESET_SPLIT).get_settings().get_raw()["params"]["connection"]
+    b = project.new_managed_dataset(OUT_BIMS)
+    b.with_store_into(conn)
+    b.create()
+    print("created", OUT_BIMS)
+dkuspark.write_with_schema(dataiku.Dataset(OUT_BIMS), bims)
+print("saved", OUT_BIMS)
+
 
 
 
