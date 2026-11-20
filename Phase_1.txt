@@ -2,18 +2,25 @@ OUT_BIMS = "Careset_BIMS_Imputed_Accounts"
 
 bims = cs.filter(F.col("cs_bims_flag").cast("double") == 1)
 print(f"Accounts with imputed total (BIMS flag = 1): {bims.count():,}")
-bims.groupBy((F.col("hn_share") == 0).alias("hn_share_0")).count().show()
 
 client = dataiku.api_client()
 project = client.get_default_project()
-if OUT_BIMS not in [x["name"] for x in project.list_datasets()]:
-    conn = project.get_dataset(CARESET_SPLIT).get_settings().get_raw()["params"]["connection"]
-    b = project.new_managed_dataset(OUT_BIMS)
-    b.with_store_into(conn)
-    b.create()
-    print("created", OUT_BIMS)
+conn = project.get_dataset(DS_867).get_settings().get_raw()["params"]["connection"]
+print("CareSet connection:", project.get_dataset(CARESET_SPLIT).get_settings().get_raw()["params"].get("connection"),
+      "| using:", conn)
+
+if OUT_BIMS in [x["name"] for x in project.list_datasets()]:
+    project.get_dataset(OUT_BIMS).delete(drop_data=True)
+    print("deleted broken", OUT_BIMS)
+b = project.new_managed_dataset(OUT_BIMS)
+b.with_store_into(conn)
+b.create()
 dkuspark.write_with_schema(dataiku.Dataset(OUT_BIMS), bims)
-print("saved", OUT_BIMS)
+
+check = dkuspark.get_dataframe(sqlContext, dataiku.Dataset(OUT_BIMS))
+print(f"saved {OUT_BIMS}: {check.count():,} rows")
+check.show(5, False)
+
 
 
 
