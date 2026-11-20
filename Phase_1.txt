@@ -1,3 +1,16 @@
+for min_pts in (0, 20):
+    ok = F.col("hn_share").isNotNull() & (F.coalesce(F.col("cs_total_pts"), F.lit(0)) >= min_pts)
+    cls = (F.when(~ok, "Unclassified").when(F.col("hn_share") >= 0.15, "Head & Neck")
+            .when(F.col("lung_share") >= 0.85, "Lung").otherwise("Unclassified"))
+    print(f"min_patients = {min_pts}")
+    (amb867.withColumn("final", cls).groupBy("final")
+       .agg(F.count("*").alias("records"), F.round(F.sum("qty"), 1).alias("units"))
+       .withColumn("pct_units", F.round(100 * F.col("units") / F.sum("units").over(Window.partitionBy()), 1))
+       .orderBy("final").show())
+
+
+
+
 OUT_BIMS = "Careset_BIMS_Imputed_Accounts"
 
 bims = cs.filter(F.col("cs_bims_flag").cast("double") == 1)
