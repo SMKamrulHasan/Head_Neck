@@ -1,3 +1,29 @@
+zero_hn = cs.filter("hn_share = 0")
+small_zero = zero_hn.filter("cs_total_pts <= 20")
+print(f"0% H&N accounts: {zero_hn.count():,} | of which <=20 patients: {small_zero.count():,}")
+
+cols = ["account_id", "cs_level", "cs_bims_flag", "cs_total_pts", "cs_lung_pts", "cs_hnscc_pts", "cs_both_pts",
+        "pct_lung", "pct_hn", "pct_both", "hn_share"]
+print("1) Sample: 0% H&N and <=20 patients")
+small_zero.select(*cols).orderBy(F.rand(42)).show(15, False)
+
+print("2) Sample: 0% H&N and >20 patients (the other 9%)")
+zero_hn.filter("cs_total_pts > 20").select(*cols).orderBy(F.desc("cs_total_pts")).show(15, False)
+
+print("3) Total patients per account, 0% H&N accounts (top values)")
+zero_hn.groupBy("cs_total_pts").count().orderBy(F.desc("count")).show(15)
+
+print("4) Most common H&N and Lung patient counts (all accounts, >0 only)")
+cs.filter("cs_hnscc_pts > 0").groupBy("cs_hnscc_pts").count().orderBy(F.desc("count")).show(10)
+cs.filter("cs_lung_pts > 0").groupBy("cs_lung_pts").count().orderBy(F.desc("count")).show(10)
+
+print("5) BIMS flag vs 0% H&N")
+cs.groupBy("cs_bims_flag", (F.col("hn_share") == 0).alias("hn_share_0")).count().orderBy("cs_bims_flag").show()
+
+
+
+
+
 amb867 = (s867.withColumn("account_id", clean(pick(s867, "L2_L3")))
               .withColumn("seg", clean(pick(s867, "segment")))
               .withColumn("qty", pick(s867, "qty_sold_pu").cast("double"))
