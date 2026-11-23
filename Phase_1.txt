@@ -1,6 +1,9 @@
 H&N: delivered a production-ready weekly account classification output feeding Finance’s first real H&N revenue estimate for a newly launched indication.
 
 
+QC’d the KOL identification pipeline, then built an 11-agent GPT-5 POC plus a KOL Copilot so Medical Affairs can ask “is this KOL real?” in plain English.
+
+KOL: on the current list, 73% of indexed papers and 59 of 112 “Classic KOL” experts (9 of the top 10) are not actually wAIHA-relevant per PubMed; the agentic approach correctly rejected 88 of 89 off-topic papers and flagged 44 of 63 off-topic KOLs with zero false positives, fully confirmed by PubMed.
 
 
 
@@ -1075,6 +1078,7 @@ Unified Account/HCP Universe
  
 Then in Phase 2, you can use this universe to build the attribution model that predicts whether Rybrevant sales at an account are attributable to Lung vs Head & Neck indications. [H&N Working Session | Meeting]
 For your project specifically, I would focus first on getting Claims → DMN_CUST → OPAL working end-to-end. That mapping layer is the critical dependency; without it, DDD and Exponent sales cannot be connected back to physicians and disease populations.
+
 
 
 
