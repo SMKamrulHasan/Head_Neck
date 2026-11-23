@@ -1,8 +1,6 @@
-Built an end-to-end agentic AI system (Dynamic Cheatsheet) with self-correction, working with or without real-time human feedback, as foundational research for SAVANT AI Core integration.
-
-
-SAVANT AI Core: the Dynamic Cheatsheet’s self-correcting, feedback-optional agentic pattern is the foundational research now being adopted into the platform’s core architecture.
-
+Compete: laid the foundational agentic-AI research (Dynamic Cheatsheet self-correction) behind SAVANT AI Core, and proposed an agentic KOL approach proven more accurate than the existing manual pipeline — both ahead of vendor-led alternatives.
+Execute: shipped each as a working, measured system — MedVerse validation artifacts, the open-source SLM in IO, and a production-ready weekly H&N classification pipeline — not proposals.
+Optimize: turned one-off KOL QC into a reusable, config-driven pipeline, and built PubMed-benchmarked validation frameworks other teams can reuse.
 
 
 
@@ -1075,6 +1073,7 @@ Unified Account/HCP Universe
  
 Then in Phase 2, you can use this universe to build the attribution model that predicts whether Rybrevant sales at an account are attributable to Lung vs Head & Neck indications. [H&N Working Session | Meeting]
 For your project specifically, I would focus first on getting Claims → DMN_CUST → OPAL working end-to-end. That mapping layer is the critical dependency; without it, DDD and Exponent sales cannot be connected back to physicians and disease populations.
+
 
 
 
