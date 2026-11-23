@@ -1,3 +1,68 @@
+What I Achieved
+
+Built an end-to-end multi-agent AI architecture spanning MedVerse validation and KOL identification, now proposed as foundational research for SAVANT AI Core.
+Independently verified MedVerse production logic for MOOD and MM in code, producing patient-level validation artifacts ahead of release.
+Fine-tuned and integrated an open-source SLM into the IO platform as a guardrail alternative to proprietary LLMs.
+QC’d the KOL identification pipeline, then built an Agentic AI POC as a better-than-manual replacement.
+Delivered a working H&N-vs-Lung HCP/account segmentation model from claims and sales data.
+
+How I Delivered (C.E.O.)
+
+Compete: proved agentic alternatives against real production data, ahead of vendor timelines.
+Execute: shipped each as a working, measured system, not a proposal.
+Optimize: turned one-off QC into reusable frameworks and pipelines.
+
+Impact Created
+
+SAVANT AI Core: established the multi-agent pattern now being adopted as the platform’s core architecture, not a one-off POC.
+MedVerse: caught production-logic errors before release across two use cases (MOOD, MM), giving QC full traceability and heading off a bad-rule production incident.
+Open-source SLM: matched or beat proprietary accuracy at 11x lower latency and a fraction of the cost, cutting the IO platform’s per-call AI spend.
+KOL: proved the agentic approach catches 87 of 90 misclassified “expert” papers the manual pipeline missed, protecting advisory-board and MSL engagement decisions from being built on the wrong experts.
+H&N: gave Finance its first real H&N revenue estimate, where there was none before, unlocking accurate forecasting for a newly launched indication.
+
+The tension is real: the slide said “max 150 words,” and getting one specific, quantified impact line per contribution plus a What-Achieved section plus C.E.O. mapping doesn’t fit in 150 — something has to give. A few ways to resolve it:
+
+Cut to 3 contributions instead of 5, keep full impact specificity on those, drop the other two (or fold them into a single closing line).
+Drop the separate C.E.O. section as bullets — fold Compete/Execute/Optimize into one short framing sentence, freeing ~25 words for Impact.
+Check if 150 is actually a hard limit in the submission tool, or just rough guidance — some of these systems truncate, others just want brevity as a norm.
+
+Which way do you want to go?
+
+trim down to 180
+
+7 more to cut.
+
+179 words — under the 180 target.
+
+Saved to Year_End_Performance_Summary_Draft.md (179 words).
+
+What I Achieved
+
+Built a multi-agent AI architecture spanning MedVerse validation and KOL identification.
+Independently verified MedVerse production logic (MOOD, MM) in code, pre-release.
+Fine-tuned and integrated an open-source SLM into IO as a guardrail alternative to proprietary LLMs.
+QC’d the KOL identification pipeline, then built an Agentic AI POC as a better-than-manual replacement.
+Delivered a working H&N-vs-Lung HCP segmentation model from claims and sales data.
+
+How I Delivered (C.E.O.)
+
+Compete: proved agentic alternatives ahead of vendor timelines. Execute: shipped each as a working, measured system. Optimize: turned one-off QC into reusable frameworks.
+
+Impact Created
+
+SAVANT AI Core: the multi-agent pattern is now being adopted as the platform’s core architecture.
+MedVerse: caught production-logic errors pre-release across two use cases, giving QC full traceability.
+Open-source SLM: matched proprietary accuracy at 11x lower latency, a fraction of the cost.
+KOL: the agentic approach catches 87 of 90 misclassified “experts” the manual pipeline missed, protecting engagement decisions.
+H&N: gave Finance its first real H&N revenue estimate for a newly launched indication.
+
+
+
+
+
+
+
+
 for min_pts in (0, 20):
     ok = F.col("hn_share").isNotNull() & (F.coalesce(F.col("cs_total_pts"), F.lit(0)) >= min_pts)
     cls = (F.when(~ok, "Unclassified").when(F.col("hn_share") >= 0.15, "Head & Neck")
@@ -1065,4 +1130,5 @@ Unified Account/HCP Universe
  
 Then in Phase 2, you can use this universe to build the attribution model that predicts whether Rybrevant sales at an account are attributable to Lung vs Head & Neck indications. [H&N Working Session | Meeting]
 For your project specifically, I would focus first on getting Claims → DMN_CUST → OPAL working end-to-end. That mapping layer is the critical dependency; without it, DDD and Exponent sales cannot be connected back to physicians and disease populations.
+
 
