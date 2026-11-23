@@ -1,6 +1,4 @@
-Delivered a weekly H&N-vs-Lung account classification pipeline combining 1-year multi-source evidence (EMR alerts, chargemaster, claims, sales) with CareSet splits and field feedback (DM survey, OCE-confirmed H&N starts).
-
-
+H&N: delivered a production-ready weekly account classification output feeding Finance’s first real H&N revenue estimate for a newly launched indication.
 
 
 
@@ -1077,6 +1075,7 @@ Unified Account/HCP Universe
  
 Then in Phase 2, you can use this universe to build the attribution model that predicts whether Rybrevant sales at an account are attributable to Lung vs Head & Neck indications. [H&N Working Session | Meeting]
 For your project specifically, I would focus first on getting Claims → DMN_CUST → OPAL working end-to-end. That mapping layer is the critical dependency; without it, DDD and Exponent sales cannot be connected back to physicians and disease populations.
+
 
 
 
